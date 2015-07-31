@@ -116,6 +116,14 @@ public class WebServer {
 			}
 
 		});
+		ScheduleManager.getInstance().periodic(60, 60, new Runnable() {
+			
+			public void run() {
+				// 定时刷新，保证服务列表同步zk
+				ZkService.getInstance().refreshAllService();
+			}
+			
+		});
 		ScheduleManager.getInstance().delay(new Runnable() {
 
 			@Override

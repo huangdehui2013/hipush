@@ -247,6 +247,17 @@ public class CometServer {
 		ScheduleUtils.periodic(60, 60, new SaveIOHistogramCommand());
 	}
 
+	public void syncZk() {
+		ScheduleManager.getInstance().periodic(60, 60, new Runnable() {
+
+			public void run() {
+				// 定时刷新，保证服务列表同步zk
+				ZkService.getInstance().refreshAllService();
+			}
+
+		});
+	}
+
 	public void start(String[] args) {
 		initArgs(args);
 		initConfig();
@@ -260,6 +271,7 @@ public class CometServer {
 		saveJobStat();
 		savePerfHistogram();
 		startLoop();
+		syncZk();
 		LOG.warn(String.format("start comet server serverId=%s ip=%s port=%s",
 				config.getServerId(), config.getCometIp(), config.getPort()));
 		startFront();

@@ -58,6 +58,7 @@ public class ZkService {
 			LOG.error("curator discovery start failed", e);
 			System.exit(-1);
 		}
+		refreshAllService();
 		startAllCache();
 		return this;
 	}
@@ -89,12 +90,15 @@ public class ZkService {
 		}
 		return this;
 	}
-
-	public void startAllCache() {
+	
+	public void refreshAllService() {
 		refreshService("comet");
 		refreshService("rpc");
 		refreshService("web");
 		refreshService("admin");
+	}
+
+	public void startAllCache() {
 		startCache("comet");
 		startCache("rpc");
 		startCache("web");

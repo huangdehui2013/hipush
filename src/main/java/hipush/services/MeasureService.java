@@ -142,7 +142,7 @@ public class MeasureService extends BaseService {
 					jedis.hset(histKey, min,
 							"" + Math.round(entry.getValue().getLeft()));
 				}
-				jedis.zincrby(IO_HISTOGRAM_TOTAL_RKEY, entry.getValue()
+				jedis.zadd(IO_HISTOGRAM_TOTAL_RKEY, entry.getValue()
 						.getRight(), entry.getKey());
 			}
 		} finally {

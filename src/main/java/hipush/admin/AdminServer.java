@@ -49,7 +49,8 @@ public class AdminServer {
 	}
 
 	private AdminConfig config = new AdminConfig();
-	private final HttpServer http = new HttpServer(1, 10).build(new AdminHandler());
+	private final HttpServer http = new HttpServer(1, 10)
+			.build(new AdminHandler());
 
 	public AdminConfig getConfig() {
 		return config;
@@ -129,6 +130,14 @@ public class AdminServer {
 
 			public void run() {
 				TopicService.getInstance().beginCollectTopicStat();
+			}
+
+		});
+		ScheduleManager.getInstance().periodic(60, 60, new Runnable() {
+
+			public void run() {
+				// 定时刷新，保证服务列表同步zk
+				ZkService.getInstance().refreshAllService();
 			}
 
 		});

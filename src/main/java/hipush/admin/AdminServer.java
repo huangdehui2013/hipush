@@ -120,8 +120,8 @@ public class AdminServer {
 		} catch (SQLException e) {
 			LOG.error("init dao center error", e);
 		}
-		AppService.getInstance().initApp();
 		AppService.getInstance().loadApps();
+		AppService.getInstance().initApp();
 		MessageService.getInstance().refreshCache();
 		ManagerService.getInstance().initManager();
 		JobService.getInstance().initJobTypes();

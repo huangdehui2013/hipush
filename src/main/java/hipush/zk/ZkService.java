@@ -79,7 +79,7 @@ public class ZkService {
 
 				@Override
 				public void cacheChanged() {
-					refreshService(serviceName);
+					refreshServiceFromCache(serviceName);
 				}
 
 			});
@@ -108,6 +108,26 @@ public class ZkService {
 		try {
 			for (ServiceInstance<String> instance : discovery
 					.queryForInstances(serviceName)) {
+				instances.put(instance.getId(), instance);
+				items.add(instance);
+				ring.addNode(serviceName + instance.getId(), instance);
+			}
+		} catch (Exception e) {
+			LOG.error("discovery query for instances error", e);
+		}
+		Collections.sort(items, comparator);
+		servicesMap.put(serviceName, instances);
+		servicesList.put(serviceName, items);
+		ringsMap.put(serviceName, ring);
+	}
+
+	public synchronized void refreshServiceFromCache(String serviceName) {
+		Map<String, ServiceInstance<String>> instances = new HashMap<String, ServiceInstance<String>>();
+		List<ServiceInstance<String>> items = new ArrayList<ServiceInstance<String>>();
+		ConsistentHash<ServiceInstance<String>> ring = new ConsistentHash<ServiceInstance<String>>();
+		ServiceCache<String> cache = caches.get(serviceName);
+		try {
+			for (ServiceInstance<String> instance : cache.getInstances()) {
 				instances.put(instance.getId(), instance);
 				items.add(instance);
 				ring.addNode(serviceName + instance.getId(), instance);

@@ -79,7 +79,7 @@ public class ZkService {
 
 				@Override
 				public void cacheChanged() {
-					refreshServiceFromCache(serviceName);
+					refreshService(serviceName);
 				}
 
 			});
@@ -99,22 +99,6 @@ public class ZkService {
 		startCache("rpc");
 		startCache("web");
 		startCache("admin");
-	}
-
-	public synchronized void refreshServiceFromCache(String serviceName) {
-		Map<String, ServiceInstance<String>> instances = new HashMap<String, ServiceInstance<String>>();
-		List<ServiceInstance<String>> items = new ArrayList<ServiceInstance<String>>();
-		ConsistentHash<ServiceInstance<String>> ring = new ConsistentHash<ServiceInstance<String>>();
-		for (ServiceInstance<String> instance : caches.get(serviceName)
-				.getInstances()) {
-			instances.put(instance.getId(), instance);
-			items.add(instance);
-			ring.addNode(serviceName + instance.getId(), instance);
-		}
-		Collections.sort(items, comparator);
-		servicesMap.put(serviceName, instances);
-		servicesList.put(serviceName, items);
-		ringsMap.put(serviceName, ring);
 	}
 
 	public synchronized void refreshService(String serviceName) {

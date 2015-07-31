@@ -1,0 +1,39 @@
+<html>
+<head>
+	{{> partial/header.mus }}
+</head>
+<body>
+    {{> partial/nav.mus }}
+
+    <div class="container-fluid">
+      <div class="row">
+        {{> partial/sidebar.mus }}
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+          <h1 class="page-header">主线程消息列表</h1>
+          <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover table-densed">
+              <thead>
+                <tr>
+                  <th>name</th>
+                  <th>活跃度</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{#items}}
+                <tr>
+                  <td>{{element}}</td>
+                  <td>{{score}}</td>
+                  <td><a href="/hist/main/detail?key={{element}}" class="btn btn-link"><span class="glyphicon glyphicon-th-list">性能报表</span></a></td>
+                </tr>
+                {{/items}}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {{> partial/footer.mus }}
+  </body>
+</html>

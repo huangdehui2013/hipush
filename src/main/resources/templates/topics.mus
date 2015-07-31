@@ -1,0 +1,38 @@
+<html>
+<head>
+	{{> partial/header.mus }}
+</head>
+<body>
+    {{> partial/nav.mus }}
+
+    <div class="container-fluid">
+      <div class="row">
+        {{> partial/sidebar.mus }}
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+          <h1 class="page-header"><a href="/app/list">主题列表</a></h1>
+          <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover table-densed">
+              <thead>
+                <tr>
+                  <th>主题名称</th>
+                  <th>订阅用户数</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{#topics}}
+                <tr>
+                  <td>{{element}}</td>
+                  <td>{{score}}</td>
+                </tr>
+                {{/topics}}
+              </tbody>
+            </table>
+            {{> partial/pager.mus }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {{> partial/footer.mus }}
+  </body>
+</html>

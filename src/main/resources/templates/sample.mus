@@ -1,0 +1,42 @@
+<html>
+<head>
+	{{> partial/header.mus }}
+</head>
+<body>
+    {{> partial/nav.mus }}
+    <div class="container-fluid">
+      <div class="row">
+        {{> partial/sidebar.mus }}
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+          <h1 class="page-header">消息测试</h1>
+          <form method="POST">
+			  <div class="form-group">
+			    <label for="topic">主题名称</label>
+			    <input type="text" class="form-control" name="topic" value="@/">
+			  </div>
+			  <div class="form-group">
+			    <label for="app_key">应用key</label>
+			    <input type="text" class="form-control" name="app_key" value="test-appkey">
+			  </div>
+			  <div class="form-group">
+			    <label for="client_id">客户端ID</label>
+			    <input type="text" class="form-control" name="client_id" placeholder="client_id">
+			  </div>
+			  <input type="hidden" name="msg_type" value="127"/>
+			  <div class="form-group">
+			    <label for="content">内容</label>
+			    <textarea class="form-control" rows="6" name="content">hipush还不错</textarea>
+			  </div>
+			  <div class="checkbox">
+			    <label>
+			      <input type="checkbox" name="online"> 只向在线用户发送
+			    </label>
+			  </div>
+			  <button type="submit" class="btn btn-default">发送</button>
+			</form>
+        </div>
+      </div>
+    </div>
+    {{> partial/footer.mus }}
+  </body>
+</html>

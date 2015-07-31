@@ -1,0 +1,13 @@
+<div class="col-sm-3 col-md-2 sidebar">
+          <ul class="nav nav-sidebar">
+          <li><a href="/manager/list" class="glyphicon glyphicon-user">管理员列表</a></li>
+            <li><a href="/app/list" class="glyphicon glyphicon-th">应用管理</a></li>
+            <li><a href="/service/list" class="glyphicon glyphicon-hdd">服务器列表</a></li>
+            <li><a href="/comet/stat" class="glyphicon glyphicon-refresh">在线状态</a></li>
+            <li><a href="/job/list_types" class="glyphicon glyphicon-list-alt">任务类型</a></li>
+            <li><a href="/job/list" class="glyphicon glyphicon-stats">任务统计</a></li>
+            <li><a href="/message/sample" class="glyphicon glyphicon-send">消息测试</a></li>
+            <li><a href="/hist/main/list" class="glyphicon glyphicon-signal">主线程性能</a></li>
+            <li><a href="/hist/io/list" class="glyphicon glyphicon-signal">IO线程性能</a></li>
+          </ul>
+        </div>

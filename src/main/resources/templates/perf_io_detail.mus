@@ -1,0 +1,90 @@
+<html>
+<head>
+	{{> partial/header.mus }}
+</head>
+<body>
+    {{> partial/nav.mus }}
+
+    <div class="container-fluid">
+      <div class="row">
+        {{> partial/sidebar.mus }}
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+          <h1 class="page-header">性能报告</h1>
+          <div class="btn-group btn-group-sm">
+            {{#days}}
+          	<a class="btn btn-default" title="{{right}}" href="/hist/io/detail?key={{key}}&day={{right}}">{{left}}</a>
+          	{{/days}}
+          </div>
+          <div id="container" style="min-width:800px;height:400px"></div>
+        </div>
+      </div>
+    </div>
+
+    {{> partial/footer.mus }}
+  </body>
+  <script src="/js/highcharts.js"></script>
+  <script>
+  $(function () {
+    Highcharts.setOptions({
+        global: {
+        	useUTC: false
+        }
+    });
+    $('#container').highcharts({
+        chart: {
+            zoomType: 'x'
+        },
+        title: {
+            text: '消息处理耗时{{today}}'
+        },
+        tooltip: {
+        	xDateFormat: '%Y-%m-%d %H-%M',
+        	shared: true
+        },
+        xAxis: {
+            type: 'datetime',
+            minRange: 600000,
+            maxRange: 24 * 3600000
+        },
+        yAxis: {
+            title: {
+                text: '耗时(毫秒)'
+            }
+        },
+        legend: {
+            enabled: false
+        },
+        plotOptions: {
+            area: {
+                fillColor: {
+                    linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1},
+                    stops: [
+                        [0, Highcharts.getOptions().colors[0]],
+                        [1, Highcharts.Color(Highcharts.getOptions().colors[0]).setOpacity(0).get('rgba')]
+                    ]
+                },
+                marker: {
+                    radius: 2
+                },
+                lineWidth: 1,
+                states: {
+                    hover: {
+                        lineWidth: 1
+                    }
+                },
+                threshold: null
+            }
+        },
+        series: [{
+            type: 'area',
+            name: '耗时',
+            pointInterval: 60 * 1000,
+            pointStart: {{ begin_ts }},
+            data: [
+                {{ hist_values }}
+            ]
+        }]
+    });
+});
+  </script>
+</html>

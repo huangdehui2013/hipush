@@ -1,0 +1,53 @@
+<html>
+<head>
+	{{> partial/header.mus }}
+</head>
+<body>
+    {{> partial/nav.mus }}
+
+    <div class="container-fluid">
+      <div class="row">
+        {{> partial/sidebar.mus }}
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+          <h1 class="page-header">应用列表<a href="/app/register" class="btn btn-default pull-right"><span class="glyphicon glyphicon-plus"></span></a></h1>
+          <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover table-densed">
+              <thead>
+                <tr>
+                  <th>名称</th>
+                  <th>应用key</th>
+                  <th>应用secret</th>
+                  <th>包名</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{#apps}}
+                <tr>
+                  <td>{{name}}</td>
+                  <td>{{key}}</td>
+                  <td>{{secret}}</td>
+                  <td>{{pkg}}</td>
+                  <td>
+                  	<a href="/topic/list?app_id={{id}}" class="btn btn-link"><span class="glyphicon glyphicon-th-list">主题列表</span></a>
+                  	<a href="/app/del?app_id={{id}}" id="btn-remove-{{key}}" class="btn btn-link"><span class="glyphicon glyphicon-remove">移除</span></a>
+                  </td>
+                </tr>
+                {{/apps}}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {{> partial/footer.mus }}
+  </body>
+  <script type="text/javascript">
+  $(function() {
+  	$("a[id^='btn-remove-']").click(function() {
+  	    return confirm("确定删除么？");
+  	});
+  });
+  </script>
+</html>

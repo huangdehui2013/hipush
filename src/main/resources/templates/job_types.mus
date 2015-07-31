@@ -1,0 +1,47 @@
+<html>
+<head>
+	{{> partial/header.mus }}
+</head>
+<body>
+    {{> partial/nav.mus }}
+
+    <div class="container-fluid">
+      <div class="row">
+        {{> partial/sidebar.mus }}
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+          <h1 class="page-header">任务类型列表<a href="/job/register_type" class="btn btn-default pull-right"><span class="glyphicon glyphicon-plus"></span></a></h1>
+          <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover table-densed">
+              <thead>
+                <tr>
+                  <th>key</th>
+                  <th>名称</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{#jobTypes}}
+                <tr>
+                  <td>{{key}}</td>
+                  <td>{{name}}</td>
+                  <td><a href="/job/del_type?key={{key}}" id="btn-type-{{key}}" class="btn btn-link"><span class="glyphicon glyphicon-remove">删除</span></a></td>
+                </tr>
+                {{/jobTypes}}
+              </tbody>
+            </table>
+            {{> partial/pager.mus }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {{> partial/footer.mus }}
+  </body>
+  <script type="text/javascript">
+  $(function() {
+  	$("a[id^='btn-type-']").click(function() {
+  	    return confirm("确定删除么？");
+  	});
+  });
+  </script>
+</html>

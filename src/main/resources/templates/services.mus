@@ -1,0 +1,57 @@
+<html>
+<head>
+	{{> partial/header.mus }}
+</head>
+<body>
+    {{> partial/nav.mus }}
+
+    <div class="container-fluid">
+      <div class="row">
+        {{> partial/sidebar.mus }}
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+          <h1 class="page-header">服务列表</h1>
+          <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover table-densed">
+              <thead>
+                <tr>
+                  <th>名称</th>
+                  <th>编号</th>
+                  <th>地址</th>
+                  <th>端口</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{#comets}}
+                <tr>
+                  <td>{{name}}</td>
+                  <td>{{id}}</td>
+                  <td>{{address}}</td>
+                  <td>{{port}}</td>
+                </tr>
+                {{/comets}}
+                {{#webs}}
+                <tr>
+                  <td>{{name}}</td>
+                  <td>{{id}}</td>
+                  <td>{{address}}</td>
+                  <td>{{port}}</td>
+                </tr>
+                {{/webs}}
+                {{#admins}}
+                <tr>
+                  <td>{{name}}</td>
+                  <td>{{id}}</td>
+                  <td>{{address}}</td>
+                  <td>{{port}}</td>
+                </tr>
+                {{/admins}}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {{> partial/footer.mus }}
+  </body>
+</html>

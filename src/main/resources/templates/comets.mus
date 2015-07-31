@@ -1,0 +1,47 @@
+<html>
+<head>
+	{{> partial/header.mus }}
+</head>
+<body>
+    {{> partial/nav.mus }}
+
+    <div class="container-fluid">
+      <div class="row">
+        {{> partial/sidebar.mus }}
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+          <h1 class="page-header">在线状态</h1>
+          <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover table-densed">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>在线数({{totalUsersCount}})</th>
+                  <th>待处理消息</th>
+                  <th>线程数</th>
+                  <th>总占用内存</th>
+                  <th>实际使用内存</th>
+                  <th>报告时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                {{#servers}}
+                <tr>
+                  <td>comet{{id}}</td>
+                  <td>{{users}}</td>
+                  <td>{{pendingMessages}}</td>
+                  <td>{{threadsCount}}</td>
+                  <td>{{totalMemory}}M</td>
+                  <td>{{usedMemory}}M</td>
+                  <td>{{reportDateStr}}</td>
+                </tr>
+                {{/servers}}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {{> partial/footer.mus }}
+  </body>
+</html>

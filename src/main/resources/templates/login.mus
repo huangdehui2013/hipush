@@ -1,0 +1,23 @@
+<html>
+<head>
+	{{> partial/header.mus }}
+</head>
+<body>
+    <div class="container">
+      <form class="form-signin" id="login-form" method="POST">
+        <h2 class="form-signin-heading">登陆Hipush</h2>
+        <label for="username" class="sr-only">username</label>
+        <input type="text" id="username" name="username" class="form-control" placeholder="用户名" required autofocus>
+        <label for="password" class="sr-only">密码</label>
+        <input type="password" id="password" class="form-control" placeholder="密码" required>
+        <button class="btn btn-lg btn-primary btn-block" type="submit">进入</button>
+        <input type="hidden" name="server_id" value="{{ server_id }}"/>
+        <input type="hidden" id="encrypt_key" name="encrypt_key" value="{{ encrypt_key }}"/>
+        <input type="hidden" id="password_encrypted" name="password_encrypted" />
+      </form>
+    </div>
+    {{> partial/footer.mus }}
+    <script type="text/javascript" src="/js/encrypt.min.js"></script>
+    <script type="text/javascript" src="/js/login.js"></script>
+  </body>
+</html>

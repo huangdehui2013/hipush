@@ -1,0 +1,25 @@
+{{#pager}}
+<nav>
+	<ul class="pagination pagination-lg">
+		{{#first}}
+		{{#firstItem}}
+		<li>
+			<a href="{{url}}" class="{{clazz}}">{{label}}</a>
+		</li>
+		{{/firstItem}}
+		{{/first}}
+		{{#pages}}
+		<li>
+			<a href="{{url}}" class="{{clazz}}">{{label}}</a>
+		</li>
+		{{/pages}}
+		{{#end}}
+		{{#endItem}}
+		<li>
+			<a href="{{url}}" class="{{clazz}}">{{label}}</a>
+		</li>
+		{{/endItem}}
+		{{/end}}
+	</ul>
+</nav>
+{{/pager}}

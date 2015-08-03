@@ -63,7 +63,7 @@ public class ClientEnvironStat {
 
 	public float getNetworkRatio(int networkType) {
 		int sum = networkIncrs[0] + networkIncrs[1] + networkIncrs[2] + networkIncrs[3];
-		if(sum == 0) {
+		if (sum == 0) {
 			return 0.0f;
 		}
 		return networkIncrs[networkType] * 100.0f / sum;
@@ -71,17 +71,17 @@ public class ClientEnvironStat {
 
 	public float getIspRatio(int isp) {
 		int sum = ispIncrs[0] + ispIncrs[1] + ispIncrs[2] + ispIncrs[3];
-		if(sum == 0) {
+		if (sum == 0) {
 			return 0.0f;
 		}
 		return ispIncrs[isp] * 100.0f / sum;
 	}
 
 	public float getPhoneRatio(String phone) {
-		if(totalPhoneIncrs == 0) {
+		if (totalPhoneIncrs == 0) {
 			return 0.0f;
 		}
-		return this.getPhoneRatio(phone) * 100.0f / totalPhoneIncrs;
+		return this.phoneIncrs.get(phone) * 100.0f / totalPhoneIncrs;
 	}
 
 }

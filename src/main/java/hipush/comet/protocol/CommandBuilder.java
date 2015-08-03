@@ -4,6 +4,7 @@ import hipush.comet.protocol.Inputs.AuthCommand;
 import hipush.comet.protocol.Inputs.HeartBeatCommand;
 import hipush.comet.protocol.Inputs.MessageAckCommand;
 import hipush.comet.protocol.Inputs.MessageListCommand;
+import hipush.comet.protocol.Inputs.ReportEnvironCommand;
 import hipush.comet.protocol.Inputs.SubscribeCommand;
 import hipush.comet.protocol.Inputs.TopicListCommand;
 import hipush.comet.protocol.Inputs.UnsubscribeCommand;
@@ -37,6 +38,9 @@ public class CommandBuilder {
 			break;
 		case MessageDefine.Read.CMD_MESSAGE_ACK:
 			result = new MessageAckCommand(body);
+			break;
+		case MessageDefine.Read.CMD_REPORT_ENVIRON:
+			result = new ReportEnvironCommand(body);
 			break;
 		default:
 			throw new MessageUndefinedError("message type not defined");

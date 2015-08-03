@@ -53,9 +53,9 @@ public class ClientEnvironHandler extends BaseHandler {
 		for(String phone: environ.getPhoneIncrs().keySet()) {
 			phones.put(phone, environ.getPhoneRatio(phone) * 100);
 		}
-		context.put("networks", networks);
-		context.put("isps", isps);
-		context.put("phones", phones);
+		context.put("networks", networks.entrySet());
+		context.put("isps", isps.entrySet());
+		context.put("phones", phones.entrySet());
 		this.renderTemplate(ctx, "client_environ.mus", context);
 	}
 }

@@ -9,5 +9,6 @@
             <li><a href="/message/sample" class="glyphicon glyphicon-send">消息测试</a></li>
             <li><a href="/hist/main/list" class="glyphicon glyphicon-signal">主线程性能</a></li>
             <li><a href="/hist/io/list" class="glyphicon glyphicon-signal">IO线程性能</a></li>
+            <li><a href="/environ/show" class="glyphicon glyphicon-signal">客户端环境</a></li>
           </ul>
         </div>

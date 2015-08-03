@@ -1,10 +1,23 @@
 package hipush.comet;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import hipush.async.AsyncManager;
 import hipush.async.IAsyncTask;
 import hipush.comet.protocol.Inputs.AuthCommand;
 import hipush.comet.protocol.Inputs.MessageAckCommand;
 import hipush.comet.protocol.Inputs.MessageListCommand;
+import hipush.comet.protocol.Inputs.ReportEnvironCommand;
 import hipush.comet.protocol.Inputs.SubscribeCommand;
 import hipush.comet.protocol.Inputs.TopicListCommand;
 import hipush.comet.protocol.Inputs.UnsubscribeCommand;
@@ -18,6 +31,7 @@ import hipush.comet.protocol.Internals.PublishPrivateCommand;
 import hipush.comet.protocol.Internals.ReportStatCommand;
 import hipush.comet.protocol.Internals.ResendPendingsCommand;
 import hipush.comet.protocol.Internals.ResendUnackedMessagesCommand;
+import hipush.comet.protocol.Internals.SaveClientEnvironCommand;
 import hipush.comet.protocol.Internals.SaveIOHistogramCommand;
 import hipush.comet.protocol.Internals.SaveJobStatCommand;
 import hipush.comet.protocol.Internals.SaveMainHistogramCommand;
@@ -32,13 +46,13 @@ import hipush.comet.protocol.Outputs.OkResponse;
 import hipush.comet.protocol.Outputs.TopicListResponse;
 import hipush.comet.protocol.ReadCommand;
 import hipush.comet.protocol.WriteResponse;
+import hipush.core.ClientEnvironStat;
 import hipush.core.Constants;
 import hipush.core.ContextUtils;
 import hipush.core.ICallback;
 import hipush.core.Pair;
 import hipush.services.AppInfo;
 import hipush.services.AppService;
-import hipush.services.UserInfo;
 import hipush.services.JobService;
 import hipush.services.JobStat;
 import hipush.services.MeasureService;
@@ -48,6 +62,7 @@ import hipush.services.ReportService;
 import hipush.services.RouteService;
 import hipush.services.ServerStat;
 import hipush.services.TopicService;
+import hipush.services.UserInfo;
 import hipush.services.UserService;
 import hipush.uuid.MessageId;
 import hipush.zk.ZkService;
@@ -57,23 +72,11 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class CommandExecutor {
-	private final static Logger LOG = LoggerFactory
-			.getLogger(CommandExecutor.class);
+	private final static Logger LOG = LoggerFactory.getLogger(CommandExecutor.class);
 
 	private Map<String, JobStat> jobStats = new ConcurrentHashMap<String, JobStat>();
+	private ClientEnvironStat environStat = new ClientEnvironStat();
 
 	public void executeInternal(InternalCommand command) {
 		switch (command.getType()) {
@@ -122,6 +125,9 @@ public class CommandExecutor {
 		case MessageDefine.Internal.SAVE_IO_HISTOGRAM:
 			saveIOHistogram((SaveIOHistogramCommand) command);
 			break;
+		case MessageDefine.Internal.SAVE_CLIENT_ENVIRON:
+			saveClientEnvironIncrs((SaveClientEnvironCommand) command);
+			break;
 		}
 	}
 
@@ -149,9 +155,11 @@ public class CommandExecutor {
 		case MessageDefine.Read.CMD_MESSAGE_ACK:
 			ackMessages((MessageAckCommand) command);
 			break;
+		case MessageDefine.Read.CMD_REPORT_ENVIRON:
+			reportEnviron((ReportEnvironCommand) command);
+			break;
 		default:
-			LOG.error("no method defined for command type=%s",
-					command.getType());
+			LOG.error("no method defined for command type=%s", command.getType());
 		}
 	}
 
@@ -166,24 +174,18 @@ public class CommandExecutor {
 
 	public void reportStat(ReportStatCommand command) {
 		int serverId = CometServer.getInstance().getConfig().getServerId();
-		ServerStat stat = new ServerStat(serverId, OnlineManager.getInstance()
-				.getCount(), MessageProcessor.getInstance().pendings(), Thread
-				.getAllStackTraces().size());
+		ServerStat stat = new ServerStat(serverId, OnlineManager.getInstance().getCount(),
+				MessageProcessor.getInstance().pendings(), Thread.getAllStackTraces().size());
 		stat.setTotalMemory((int) (Runtime.getRuntime().totalMemory() >> 20));
-		stat.setUsedMemory((int) ((Runtime.getRuntime().totalMemory() - Runtime
-				.getRuntime().freeMemory()) >> 20));
+		stat.setUsedMemory((int) ((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) >> 20));
 		ReportService.getInstance().saveServerStat("" + serverId, stat);
 	}
 
 	public void startZk(ZkStartCommand command) {
 		CometConfig config = CometServer.getInstance().getConfig();
-		ZkService
-				.getInstance()
-				.startClient(config.getCuratorClient())
-				.registerComet("" + config.getServerId(), config.getCometIp(),
-						config.getPort())
-				.registerRpc("" + config.getServerId(), config.getRpcIp(),
-						config.getPort());
+		ZkService.getInstance().startClient(config.getCuratorClient())
+				.registerComet("" + config.getServerId(), config.getCometIp(), config.getPort())
+				.registerRpc("" + config.getServerId(), config.getRpcIp(), config.getPort());
 	}
 
 	private static class SavePrivateTask implements IAsyncTask {
@@ -199,8 +201,7 @@ public class CommandExecutor {
 		@Override
 		public void runAsync() {
 			MessageService.getInstance().savePrivateMessage(message);
-			MessageService.getInstance().saveUserMessage(clientId,
-					message.getId());
+			MessageService.getInstance().saveUserMessage(clientId, message.getId());
 		}
 
 		@Override
@@ -221,20 +222,17 @@ public class CommandExecutor {
 	}
 
 	public void publishPrivate(PublishPrivateCommand command) {
-		final ChannelHandlerContext ctx = OnlineManager.getInstance()
-				.getClient(command.getClientId());
+		final ChannelHandlerContext ctx = OnlineManager.getInstance().getClient(command.getClientId());
 		String mid = MessageId.nextPrivateId();
 		boolean online = command.isOnline();
-		final MessageInfo msg = new MessageInfo(command.getMessageType(),
-				command.getJobId(), mid, command.getContent(),
+		final MessageInfo msg = new MessageInfo(command.getMessageType(), command.getJobId(), mid, command.getContent(),
 				System.currentTimeMillis());
 		final String jobId = command.getJobId();
 		JobStat stat = getJobStat(jobId);
 		if (ctx == null) {
 			// 离线的存起来再说
 			if (!online) {
-				AsyncManager.getInstance().execute(
-						new SavePrivateTask(command.getClientId(), msg));
+				AsyncManager.getInstance().execute(new SavePrivateTask(command.getClientId(), msg));
 				stat.incrSentCount();
 				stat.incrOfflineCount();
 			}
@@ -245,18 +243,17 @@ public class CommandExecutor {
 		ClientInfo client = ContextUtils.getClient(ctx);
 		final MessageResponse response = new MessageResponse(msg);
 		client.addMessage(msg);
-		ContextUtils.writeAndFlush(ctx, response,
-				new ICallback<Future<Void>>() {
+		ContextUtils.writeAndFlush(ctx, response, new ICallback<Future<Void>>() {
 
-					@Override
-					public void invoke(Future<Void> future) {
-						if (future.isSuccess()) {
-							JobStat stat = getJobStat(jobId);
-							stat.incrRealSentCount();
-						}
-					}
+			@Override
+			public void invoke(Future<Void> future) {
+				if (future.isSuccess()) {
+					JobStat stat = getJobStat(jobId);
+					stat.incrRealSentCount();
+				}
+			}
 
-				});
+		});
 	}
 
 	private class LoadTopicClientsTask implements IAsyncTask {
@@ -267,8 +264,7 @@ public class CommandExecutor {
 		private volatile MessageInfo message;
 		private volatile Set<String> clients;
 
-		public LoadTopicClientsTask(int appId, String topic, int serverId,
-				MessageInfo message) {
+		public LoadTopicClientsTask(int appId, String topic, int serverId, MessageInfo message) {
 			this.appId = appId;
 			this.topic = topic;
 			this.serverId = serverId;
@@ -277,8 +273,7 @@ public class CommandExecutor {
 
 		@Override
 		public void runAsync() {
-			clients = TopicService.getInstance().getClients(appId, topic,
-					serverId);
+			clients = TopicService.getInstance().getClients(appId, topic, serverId);
 			LOG.warn("load topic clients size=%s", clients.size());
 		}
 
@@ -302,11 +297,9 @@ public class CommandExecutor {
 	}
 
 	public void publishMulti(PublishMultiCommand command) {
-		MessageInfo message = MessageService.getInstance().getCachedMessage(
-				command.getMsgId());
+		MessageInfo message = MessageService.getInstance().getCachedMessage(command.getMsgId());
 		if (message == null) {
-			LOG.error(String.format("message id=%s not exists in cache",
-					command.getMsgId()));
+			LOG.error(String.format("message id=%s not exists in cache", command.getMsgId()));
 			return;
 		}
 		AppInfo app = AppService.getInstance().getApp(command.getAppKey());
@@ -315,25 +308,18 @@ public class CommandExecutor {
 			return;
 		}
 		if (!command.isOnline()) {
-			AsyncManager.getInstance()
-					.execute(
-							new LoadTopicClientsTask(app.getId(), command
-									.getTopic(), CometServer.getInstance()
-									.getConfig().getServerId(), message));
+			AsyncManager.getInstance().execute(new LoadTopicClientsTask(app.getId(), command.getTopic(),
+					CometServer.getInstance().getConfig().getServerId(), message));
 		} else {
-			Iterator<String> iter = OnlineManager.getInstance()
-					.getAllClientIds().iterator();
-			PublishIteratorCommand cmd = new PublishIteratorCommand(iter,
-					command.getTopic(), message, true);
+			Iterator<String> iter = OnlineManager.getInstance().getAllClientIds().iterator();
+			PublishIteratorCommand cmd = new PublishIteratorCommand(iter, command.getTopic(), message, true);
 			MessageProcessor.getInstance().putMessage(cmd);
 		}
 	}
 
-	public void afterTopicClientsLoad(Set<String> clientIds, String topic,
-			MessageInfo message) {
+	public void afterTopicClientsLoad(Set<String> clientIds, String topic, MessageInfo message) {
 		Iterator<String> iter = clientIds.iterator();
-		PublishIteratorCommand command = new PublishIteratorCommand(iter,
-				topic, message, false);
+		PublishIteratorCommand command = new PublishIteratorCommand(iter, topic, message, false);
 		MessageProcessor.getInstance().putMessage(command);
 	}
 
@@ -344,8 +330,8 @@ public class CommandExecutor {
 		private volatile String topic;
 		private volatile MessageInfo message;
 
-		public SaveOfflineMessageTask(Iterator<String> clientsIter,
-				String topic, List<String> offlines, MessageInfo message) {
+		public SaveOfflineMessageTask(Iterator<String> clientsIter, String topic, List<String> offlines,
+				MessageInfo message) {
 			this.clientsIter = clientsIter;
 			this.topic = topic;
 			this.offlines = offlines;
@@ -355,17 +341,15 @@ public class CommandExecutor {
 		@Override
 		public void runAsync() {
 			for (String clientId : offlines) {
-				MessageService.getInstance().saveUserMessage(clientId,
-						message.getId());
+				MessageService.getInstance().saveUserMessage(clientId, message.getId());
 			}
 		}
 
 		@Override
 		public void afterOk() {
 			if (clientsIter.hasNext()) {
-				MessageProcessor.getInstance().putMessage(
-						new PublishIteratorCommand(clientsIter, topic, message,
-								false));
+				MessageProcessor.getInstance()
+						.putMessage(new PublishIteratorCommand(clientsIter, topic, message, false));
 			}
 		}
 
@@ -373,9 +357,8 @@ public class CommandExecutor {
 		public void afterError(Exception e) {
 			LOG.error("save offline messages error", e);
 			if (clientsIter.hasNext()) {
-				MessageProcessor.getInstance().putMessage(
-						new PublishIteratorCommand(clientsIter, topic, message,
-								false));
+				MessageProcessor.getInstance()
+						.putMessage(new PublishIteratorCommand(clientsIter, topic, message, false));
 			}
 		}
 
@@ -409,8 +392,7 @@ public class CommandExecutor {
 		JobStat stat = getJobStat(jobId);
 		while (iter.hasNext()) {
 			String clientId = iter.next();
-			final ChannelHandlerContext ctx = OnlineManager.getInstance()
-					.getClient(clientId);
+			final ChannelHandlerContext ctx = OnlineManager.getInstance().getClient(clientId);
 			if (ctx == null) {
 				offlines.add(clientId);
 				continue;
@@ -422,21 +404,19 @@ public class CommandExecutor {
 			}
 			ClientInfo clientInfo = ContextUtils.getClient(ctx);
 			stat.incrSentCount(); // 增加发送量
-			final MessageResponse message = new MessageResponse(
-					command.getMessage());
+			final MessageResponse message = new MessageResponse(command.getMessage());
 			clientInfo.addMessage(command.getMessage());
-			ContextUtils.writeAndFlush(ctx, message,
-					new ICallback<Future<Void>>() {
+			ContextUtils.writeAndFlush(ctx, message, new ICallback<Future<Void>>() {
 
-						@Override
-						public void invoke(Future<Void> future) {
-							if (future.isSuccess()) {
-								JobStat stat = getJobStat(jobId);
-								stat.incrRealSentCount(); // 增加实际发送量
-							}
-						}
+				@Override
+				public void invoke(Future<Void> future) {
+					if (future.isSuccess()) {
+						JobStat stat = getJobStat(jobId);
+						stat.incrRealSentCount(); // 增加实际发送量
+					}
+				}
 
-					});
+			});
 			total++;
 			// 批次进行，一次1000个
 			if (total >= 1000) {
@@ -447,10 +427,8 @@ public class CommandExecutor {
 			if (!online) {
 				stat.incrSentCount(offlines.size());
 				stat.incrOfflineCount(offlines.size());
-				AsyncManager.getInstance().execute(
-						new SaveOfflineMessageTask(command.getClientsIter(),
-								command.getTopic(), offlines, command
-										.getMessage()));
+				AsyncManager.getInstance().execute(new SaveOfflineMessageTask(command.getClientsIter(),
+						command.getTopic(), offlines, command.getMessage()));
 			}
 		} else {
 			if (command.getClientsIter().hasNext()) {
@@ -489,8 +467,7 @@ public class CommandExecutor {
 
 		@Override
 		public void afterError(Exception e) {
-			ctx.writeAndFlush(ErrorResponse
-					.newServerError("unknown server error for auth command"));
+			ctx.writeAndFlush(ErrorResponse.newServerError("unknown server error for auth command"));
 			return;
 		}
 
@@ -502,31 +479,22 @@ public class CommandExecutor {
 	}
 
 	public void auth(AuthCommand command) {
-		ChannelHandlerContext ctx = OnlineManager.getInstance().getClient(
-				command.getClientId());
+		ChannelHandlerContext ctx = OnlineManager.getInstance().getClient(command.getClientId());
 		if (ctx != null) {
-			command.getCtx()
-					.writeAndFlush(
-							ErrorResponse
-									.newClientDupError("clientId already online"))
+			command.getCtx().writeAndFlush(ErrorResponse.newClientDupError("clientId already online"))
 					.addListener(ChannelFutureListener.CLOSE);
 			return;
 		}
-		AsyncManager.getInstance().execute(
-				new AuthTask(command.getCtx(), command.getClientId(), command
-						.getToken()));
+		AsyncManager.getInstance().execute(new AuthTask(command.getCtx(), command.getClientId(), command.getToken()));
 	}
 
-	public void afterAuth(ChannelHandlerContext ctx, String clientId,
-			UserInfo client, boolean success) {
+	public void afterAuth(ChannelHandlerContext ctx, String clientId, UserInfo client, boolean success) {
 		if (!success) {
 			ErrorResponse err = null;
 			if (client != null) {
-				err = ErrorResponse
-						.newTokenExpiredError("token expired or illegal");
+				err = ErrorResponse.newTokenExpiredError("token expired or illegal");
 			} else {
-				err = ErrorResponse
-						.newClientNotFoundError("client id not exists");
+				err = ErrorResponse.newClientNotFoundError("client id not exists");
 			}
 			ctx.writeAndFlush(err);
 			return;
@@ -548,32 +516,24 @@ public class CommandExecutor {
 		@Override
 		public void runAsync() {
 			UserInfo pair = UserService.getInstance().getClient(clientId);
-			List<MessageInfo> messages = MessageService.getInstance()
-					.getUserMessages(clientId);
+			List<MessageInfo> messages = MessageService.getInstance().getUserMessages(clientId);
 			MessageService.getInstance().removeUserMessages(clientId);
-			List<String> topics = TopicService.getInstance().getClientTopics(
-					clientId);
+			List<String> topics = TopicService.getInstance().getClientTopics(clientId);
 			String lastServerId = RouteService.getInstance().getRoute(clientId);
-			int currentServerId = CometServer.getInstance().getConfig()
-					.getServerId();
+			int currentServerId = CometServer.getInstance().getConfig().getServerId();
 			if (lastServerId == null && topics.size() > 0) {
 				LOG.error("impossible with empty lastServerId but have topics");
 			}
-			if (lastServerId != null
-					&& !("" + currentServerId).equals(lastServerId)) {
+			if (lastServerId != null && !("" + currentServerId).equals(lastServerId)) {
 				// 搬迁topic，从lastServerId搬到currentServerId
-				TopicService.getInstance().unsubscribeTopics(pair.getAppId(),
-						Integer.parseInt(lastServerId), clientId, topics);
-				TopicService.getInstance().subscribeTopics(pair.getAppId(),
-						currentServerId, clientId, topics);
+				TopicService.getInstance().unsubscribeTopics(pair.getAppId(), Integer.parseInt(lastServerId), clientId,
+						topics);
+				TopicService.getInstance().subscribeTopics(pair.getAppId(), currentServerId, clientId, topics);
 			}
-			clientInfo = new ClientInfo(clientId, pair.getAppId(), topics,
-					messages);
-			if (lastServerId == null
-					|| !("" + currentServerId).equals(lastServerId)) {
+			clientInfo = new ClientInfo(clientId, pair.getAppId(), topics, messages);
+			if (lastServerId == null || !("" + currentServerId).equals(lastServerId)) {
 				// 更新路由
-				RouteService.getInstance().saveRoute(clientId,
-						"" + currentServerId);
+				RouteService.getInstance().saveRoute(clientId, "" + currentServerId);
 			}
 		}
 
@@ -584,8 +544,7 @@ public class CommandExecutor {
 
 		@Override
 		public void afterError(Exception e) {
-			ctx.writeAndFlush(ErrorResponse
-					.newServerError("unknown error when loading client info"));
+			ctx.writeAndFlush(ErrorResponse.newServerError("unknown error when loading client info"));
 		}
 
 		@Override
@@ -595,8 +554,7 @@ public class CommandExecutor {
 
 	}
 
-	public void afterClientLoaded(ChannelHandlerContext ctx,
-			ClientInfo clientInfo) {
+	public void afterClientLoaded(ChannelHandlerContext ctx, ClientInfo clientInfo) {
 		ContextUtils.attachClient(ctx, clientInfo);
 		OnlineManager.getInstance().addClient(clientInfo.getClientId(), ctx);
 		ctx.writeAndFlush(new OkResponse());
@@ -604,8 +562,7 @@ public class CommandExecutor {
 
 	public void getTopicList(TopicListCommand command) {
 		ClientInfo client = ContextUtils.getClient(command.getCtx());
-		ChannelHandlerContext ctx = OnlineManager.getInstance().getClient(
-				client.getClientId());
+		ChannelHandlerContext ctx = OnlineManager.getInstance().getClient(client.getClientId());
 		ctx.writeAndFlush(new TopicListResponse(client.getClientTopics()));
 	}
 
@@ -618,8 +575,7 @@ public class CommandExecutor {
 		private volatile ChannelHandlerContext ctx;
 		private volatile boolean serverSide;
 
-		public SubscribeTopicsTask(int appId, String clientId,
-				List<String> allTopics, List<String> newTopics,
+		public SubscribeTopicsTask(int appId, String clientId, List<String> allTopics, List<String> newTopics,
 				ChannelHandlerContext ctx) {
 			this.appId = appId;
 			this.clientId = clientId;
@@ -639,8 +595,7 @@ public class CommandExecutor {
 		@Override
 		public void runAsync() {
 			int serverId = CometServer.getInstance().getConfig().getServerId();
-			TopicService.getInstance().subscribeTopics(appId, serverId,
-					clientId, newTopics);
+			TopicService.getInstance().subscribeTopics(appId, serverId, clientId, newTopics);
 			TopicService.getInstance().saveClientTopics(clientId, allTopics);
 			TopicService.getInstance().saveTopicsMeta(appId, newTopics);
 		}
@@ -655,8 +610,7 @@ public class CommandExecutor {
 		@Override
 		public void afterError(Exception e) {
 			if (!isServerSide()) {
-				ctx.writeAndFlush(ErrorResponse
-						.newServerError("subscribe failed"));
+				ctx.writeAndFlush(ErrorResponse.newServerError("subscribe failed"));
 			}
 		}
 
@@ -676,16 +630,13 @@ public class CommandExecutor {
 				allTopics.add(topic);
 			}
 		}
-		AsyncManager.getInstance().execute(
-				new SubscribeTopicsTask(client.getAppId(),
-						client.getClientId(), allTopics, command.getTopics(),
-						command.getCtx()));
+		AsyncManager.getInstance().execute(new SubscribeTopicsTask(client.getAppId(), client.getClientId(), allTopics,
+				command.getTopics(), command.getCtx()));
 	}
 
 	public void subscribeByServer(ServerSubscribeCommand command) {
 		for (String clientId : command.getClientIds()) {
-			ChannelHandlerContext ctx = OnlineManager.getInstance().getClient(
-					clientId);
+			ChannelHandlerContext ctx = OnlineManager.getInstance().getClient(clientId);
 			if (ctx != null) {
 				// 用户在线
 				ClientInfo client = ContextUtils.getClient(ctx);
@@ -695,15 +646,13 @@ public class CommandExecutor {
 				if (!allTopics.contains(topic)) {
 					allTopics.add(topic);
 					newTopics.add(topic);
-					SubscribeTopicsTask task = new SubscribeTopicsTask(
-							client.getAppId(), client.getClientId(), allTopics,
-							newTopics, command.getCtx());
+					SubscribeTopicsTask task = new SubscribeTopicsTask(client.getAppId(), client.getClientId(),
+							allTopics, newTopics, command.getCtx());
 					task.setServerSide(true);
 					AsyncManager.getInstance().execute(task);
 				}
 			} else {
-				AsyncManager.getInstance().execute(
-						new SubscribeOfflineTask(clientId, command.getTopic()));
+				AsyncManager.getInstance().execute(new SubscribeOfflineTask(clientId, command.getTopic()));
 			}
 		}
 	}
@@ -726,17 +675,15 @@ public class CommandExecutor {
 				LOG.error("clientId=%s not exists", clientId);
 				return;
 			}
-			List<String> allTopics = TopicService.getInstance()
-					.getClientTopics(clientId);
+			List<String> allTopics = TopicService.getInstance().getClientTopics(clientId);
 			List<String> newTopics = new ArrayList<String>(1);
 			if (!allTopics.contains(topic)) {
 				allTopics.add(topic);
 				newTopics.add(topic);
-				TopicService.getInstance()
-						.saveClientTopics(clientId, allTopics);
+				TopicService.getInstance().saveClientTopics(clientId, allTopics);
 
-				TopicService.getInstance().subscribeTopics(client.getAppId(),
-						Integer.parseInt(serverId), clientId, newTopics);
+				TopicService.getInstance().subscribeTopics(client.getAppId(), Integer.parseInt(serverId), clientId,
+						newTopics);
 			}
 		}
 
@@ -766,8 +713,7 @@ public class CommandExecutor {
 		private volatile ChannelHandlerContext ctx;
 		private volatile boolean serverSide;
 
-		public UnsubscribeTopicsTask(int appId, String clientId,
-				List<String> allTopics, List<String> oldTopics,
+		public UnsubscribeTopicsTask(int appId, String clientId, List<String> allTopics, List<String> oldTopics,
 				ChannelHandlerContext ctx) {
 			this.appId = appId;
 			this.clientId = clientId;
@@ -787,8 +733,7 @@ public class CommandExecutor {
 		@Override
 		public void runAsync() {
 			int serverId = CometServer.getInstance().getConfig().getServerId();
-			TopicService.getInstance().unsubscribeTopics(appId, serverId,
-					clientId, oldTopics);
+			TopicService.getInstance().unsubscribeTopics(appId, serverId, clientId, oldTopics);
 			TopicService.getInstance().saveClientTopics(clientId, allTopics);
 		}
 
@@ -802,8 +747,7 @@ public class CommandExecutor {
 		@Override
 		public void afterError(Exception e) {
 			if (!isServerSide()) {
-				ctx.writeAndFlush(ErrorResponse
-						.newServerError("unsubscribe error"));
+				ctx.writeAndFlush(ErrorResponse.newServerError("unsubscribe error"));
 			}
 		}
 
@@ -824,16 +768,13 @@ public class CommandExecutor {
 				allTopics.remove(topic);
 			}
 		}
-		AsyncManager.getInstance().execute(
-				new UnsubscribeTopicsTask(client.getAppId(), client
-						.getClientId(), allTopics, command.getTopics(), command
-						.getCtx()));
+		AsyncManager.getInstance().execute(new UnsubscribeTopicsTask(client.getAppId(), client.getClientId(), allTopics,
+				command.getTopics(), command.getCtx()));
 	}
 
 	public void unsubscribeByServer(ServerUnSubscribeCommand command) {
 		for (String clientId : command.getClientIds()) {
-			ChannelHandlerContext ctx = OnlineManager.getInstance().getClient(
-					clientId);
+			ChannelHandlerContext ctx = OnlineManager.getInstance().getClient(clientId);
 			if (ctx != null) {
 				// 用户在线
 				ClientInfo client = ContextUtils.getClient(ctx);
@@ -843,17 +784,13 @@ public class CommandExecutor {
 				if (allTopics.contains(topic)) {
 					allTopics.remove(topic);
 					oldTopics.add(topic);
-					UnsubscribeTopicsTask task = new UnsubscribeTopicsTask(
-							client.getAppId(), client.getClientId(), allTopics,
-							oldTopics, command.getCtx());
+					UnsubscribeTopicsTask task = new UnsubscribeTopicsTask(client.getAppId(), client.getClientId(),
+							allTopics, oldTopics, command.getCtx());
 					task.setServerSide(true);
 					AsyncManager.getInstance().execute(task);
 				}
 			} else {
-				AsyncManager.getInstance()
-						.execute(
-								new UnsubscribeOfflineTask(clientId, command
-										.getTopic()));
+				AsyncManager.getInstance().execute(new UnsubscribeOfflineTask(clientId, command.getTopic()));
 			}
 		}
 	}
@@ -876,17 +813,15 @@ public class CommandExecutor {
 				LOG.error("clientId=%s not exists", clientId);
 				return;
 			}
-			List<String> allTopics = TopicService.getInstance()
-					.getClientTopics(clientId);
+			List<String> allTopics = TopicService.getInstance().getClientTopics(clientId);
 			List<String> oldTopics = new ArrayList<String>(1);
 			if (allTopics.contains(topic)) {
 				allTopics.remove(topic);
 				oldTopics.add(topic);
-				TopicService.getInstance()
-						.saveClientTopics(clientId, allTopics);
+				TopicService.getInstance().saveClientTopics(clientId, allTopics);
 
-				TopicService.getInstance().unsubscribeTopics(client.getAppId(),
-						Integer.parseInt(serverId), clientId, oldTopics);
+				TopicService.getInstance().unsubscribeTopics(client.getAppId(), Integer.parseInt(serverId), clientId,
+						oldTopics);
 			}
 		}
 
@@ -910,8 +845,7 @@ public class CommandExecutor {
 	public void getMessageList(MessageListCommand command) {
 		ChannelHandlerContext ctx = command.getCtx();
 		final ClientInfo client = ContextUtils.getClient(ctx);
-		MessageListResponse message = new MessageListResponse(
-				client.getMessages());
+		MessageListResponse message = new MessageListResponse(client.getMessages());
 		ctx.writeAndFlush(message).addListener(new FutureListener<Void>() {
 
 			@Override
@@ -955,9 +889,7 @@ public class CommandExecutor {
 		ClientInfo client = ContextUtils.getClient(command.getCtx());
 		OnlineManager.getInstance().removeClient(client.getClientId());
 		if (!client.isEmpty()) {
-			AsyncManager.getInstance().execute(
-					new SaveClientMessagesTask(client.getClientId(), client
-							.getMessages()));
+			AsyncManager.getInstance().execute(new SaveClientMessagesTask(client.getClientId(), client.getMessages()));
 		}
 	}
 
@@ -967,8 +899,7 @@ public class CommandExecutor {
 
 		public List<MessageInfo> messages;
 
-		public SaveClientMessagesTask(String clientId,
-				List<MessageInfo> messages) {
+		public SaveClientMessagesTask(String clientId, List<MessageInfo> messages) {
 			this.clientId = clientId;
 			this.messages = messages;
 		}
@@ -981,8 +912,7 @@ public class CommandExecutor {
 				}
 			}
 			if (messages.size() > 0) {
-				MessageService.getInstance().saveUserMessages(clientId,
-						messages);
+				MessageService.getInstance().saveUserMessages(clientId, messages);
 			}
 		}
 
@@ -1009,8 +939,7 @@ public class CommandExecutor {
 			String jobId = entry.getKey();
 			JobStat stat = entry.getValue();
 			JobStat tempStat = new JobStat(stat.getId());
-			if (stat.getSentCount() > 100 || stat.getArrivedCount() > 100
-					|| stat.getRealSentCount() > 100
+			if (stat.getSentCount() > 100 || stat.getArrivedCount() > 100 || stat.getRealSentCount() > 100
 					|| stat.getOfflineCount() > 100 || command.isSaveAll()) {
 				tempStat.setSentCount(stat.getSentCount());
 				stat.setSentCount(0);
@@ -1076,8 +1005,7 @@ public class CommandExecutor {
 		final ChannelHandlerContext ctx = command.getCtx();
 		ClientInfo client = ContextUtils.getClient(ctx);
 		long now = System.currentTimeMillis();
-		if (client == null
-				|| now - client.getLastResendTs() < Constants.MESSAGE_UNACKED_CHECK_PERIOD
+		if (client == null || now - client.getLastResendTs() < Constants.MESSAGE_UNACKED_CHECK_PERIOD
 				|| client.isEmpty()) {
 			return;
 		}
@@ -1087,18 +1015,16 @@ public class CommandExecutor {
 		client.setLastResendTs(now);
 		for (final MessageInfo message : client.getMessages()) {
 			if (now - message.getTs() > Constants.MESSAGE_UNACKED_CHECK_PERIOD) {
-				ContextUtils.writeAndFlush(ctx, new MessageResponse(message),
-						new ICallback<Future<Void>>() {
+				ContextUtils.writeAndFlush(ctx, new MessageResponse(message), new ICallback<Future<Void>>() {
 
-							@Override
-							public void invoke(Future<Void> f) {
-								if (f.isSuccess()) {
-									JobStat stat = getJobStat(message
-											.getJobId());
-									stat.incrRealSentCount();
-								}
-							}
-						});
+					@Override
+					public void invoke(Future<Void> f) {
+						if (f.isSuccess()) {
+							JobStat stat = getJobStat(message.getJobId());
+							stat.incrRealSentCount();
+						}
+					}
+				});
 			}
 		}
 	}
@@ -1107,22 +1033,20 @@ public class CommandExecutor {
 		List<WriteResponse> messages = command.getMessages();
 		ChannelHandlerContext ctx = command.getCtx();
 		for (final WriteResponse message : messages) {
-			ContextUtils.writeAndFlush(ctx, message,
-					new ICallback<Future<Void>>() {
+			ContextUtils.writeAndFlush(ctx, message, new ICallback<Future<Void>>() {
 
-						@Override
-						public void invoke(Future<Void> future) {
-							if (!future.isSuccess()) {
-								return;
-							}
-							if (message.getType() == MessageDefine.Write.MSG_MESSAGE) {
-								JobStat stat = getJobStat(((MessageResponse) message)
-										.getJobId());
-								stat.incrRealSentCount();
-							}
-						}
+				@Override
+				public void invoke(Future<Void> future) {
+					if (!future.isSuccess()) {
+						return;
+					}
+					if (message.getType() == MessageDefine.Write.MSG_MESSAGE) {
+						JobStat stat = getJobStat(((MessageResponse) message).getJobId());
+						stat.incrRealSentCount();
+					}
+				}
 
-					});
+			});
 		}
 	}
 
@@ -1215,15 +1139,55 @@ public class CommandExecutor {
 	}
 
 	public void saveMainHistogram(SaveMainHistogramCommand command) {
-		Map<String, Pair<Double, Long>> savings = MeasureService.getInstance()
-				.clearMainHistogram();
+		Map<String, Pair<Double, Long>> savings = MeasureService.getInstance().clearMainHistogram();
 		AsyncManager.getInstance().execute(new SaveMainHistTask(savings));
 	}
 
 	public void saveIOHistogram(SaveIOHistogramCommand command) {
-		Map<String, Pair<Double, Long>> savings = MeasureService.getInstance()
-				.clearIOHistogram();
+		Map<String, Pair<Double, Long>> savings = MeasureService.getInstance().clearIOHistogram();
 		AsyncManager.getInstance().execute(new SaveIOHistTask(savings));
+	}
+
+	public void reportEnviron(ReportEnvironCommand command) {
+		this.environStat.incrNetwork(command.getNetworkType());
+		this.environStat.incrIsp(command.getIsp());
+		this.environStat.incrPhone(command.getPhoneType());
+		command.getCtx().writeAndFlush(new OkResponse());
+	}
+	
+	private static class SaveClientEnvironTask implements IAsyncTask {
+		
+		private ClientEnvironStat environIncrs;
+		
+		public SaveClientEnvironTask(ClientEnvironStat environIncrs) {
+			this.environIncrs = environIncrs;
+		}
+
+		@Override
+		public void runAsync() {
+			ReportService.getInstance().saveClientEnviron(environIncrs);
+		}
+
+		@Override
+		public void afterOk() {
+			
+		}
+
+		@Override
+		public void afterError(Exception e) {
+			
+		}
+
+		@Override
+		public String getName() {
+			return "save_client_environ";
+		}
+		
+	}
+	
+	private void saveClientEnvironIncrs(SaveClientEnvironCommand command) {
+		AsyncManager.getInstance().execute(new SaveClientEnvironTask(environStat));
+		this.environStat = new ClientEnvironStat();
 	}
 
 }

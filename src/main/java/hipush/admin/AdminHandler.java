@@ -21,6 +21,7 @@ public class AdminHandler extends HttpServerHandler {
 		this.addHandler(new ServiceHandler());
 		this.addHandler(new TopicHandler());
 		this.addHandler(new HistogramHandler());
+		this.addHandler(new ClientEnvironHandler());
 		this.addHandler(new HomeHandler());
 	}
 

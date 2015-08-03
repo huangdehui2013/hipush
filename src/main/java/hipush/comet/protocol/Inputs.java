@@ -1,12 +1,13 @@
 package hipush.comet.protocol;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import hipush.core.ClientEnvironStat;
 import hipush.core.Helpers;
 import hipush.uuid.ClientId;
 import hipush.uuid.TokenId;
 import io.netty.buffer.ByteBuf;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class Inputs {
 
@@ -227,9 +228,9 @@ public class Inputs {
 	}
 
 	public static class MessageAckCommand extends ReadCommand {
-		
+
 		private List<String> messageIds;
-		
+
 		public MessageAckCommand(ByteBuf in) {
 			super(in);
 		}
@@ -243,11 +244,11 @@ public class Inputs {
 		public void readImpl() {
 			int len = readByte();
 			messageIds = new ArrayList<String>(len);
-			for(int i=0;i<len;i++) {
+			for (int i = 0; i < len; i++) {
 				messageIds.add(readStr());
 			}
 		}
-		
+
 		public List<String> getMessageIds() {
 			return messageIds;
 		}
@@ -261,5 +262,62 @@ public class Inputs {
 		public boolean isValid() {
 			return true;
 		}
+	}
+
+	public static class ReportEnvironCommand extends ReadCommand {
+
+		private int networkType;
+		private int isp;
+		private String phoneType;
+		private String[] extras;
+
+		public ReportEnvironCommand(ByteBuf in) {
+			super(in);
+		}
+
+		@Override
+		public byte getType() {
+			return MessageDefine.Read.CMD_REPORT_ENVIRON;
+		}
+
+		@Override
+		public void readImpl() {
+			this.networkType = readByte();
+			this.isp = readByte();
+			this.phoneType = readStr();
+			extras = new String[readByte()];
+			for (int i = 0; i < extras.length; i++) {
+				extras[i] = readStr();
+			}
+		}
+
+		public int getNetworkType() {
+			return networkType;
+		}
+
+		public String getPhoneType() {
+			return phoneType;
+		}
+
+		public int getIsp() {
+			return isp;
+		}
+
+		public String[] getExtras() {
+			return extras;
+		}
+
+		@Override
+		public String getName() {
+			return "report_environ";
+		}
+
+		@Override
+		public boolean isValid() {
+			return networkType >= ClientEnvironStat.NETWORK_TYPE_WIFI
+					&& networkType <= ClientEnvironStat.NETWORK_TYPE_4G && isp >= ClientEnvironStat.ISP_EMPTY
+					&& isp <= ClientEnvironStat.ISP_TELECOM;
+		}
+
 	}
 }

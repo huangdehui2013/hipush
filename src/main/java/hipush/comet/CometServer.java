@@ -1,9 +1,25 @@
 package hipush.comet;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
+
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
+
+import org.apache.commons.cli.CommandLine;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import hipush.async.AsyncManager;
 import hipush.comet.protocol.CommandDecoder;
 import hipush.comet.protocol.Internals.ClearOverdueJobsCommand;
 import hipush.comet.protocol.Internals.ReportStatCommand;
+import hipush.comet.protocol.Internals.SaveClientEnvironCommand;
 import hipush.comet.protocol.Internals.SaveIOHistogramCommand;
 import hipush.comet.protocol.Internals.SaveJobStatCommand;
 import hipush.comet.protocol.Internals.SaveMainHistogramCommand;
@@ -36,21 +52,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.traffic.ChannelTrafficShapingHandler;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.sql.SQLException;
-import java.util.List;
-import java.util.Map;
-
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
-
-import org.apache.commons.cli.CommandLine;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class CometServer {
 	private final static Logger LOG = LoggerFactory
@@ -246,6 +247,10 @@ public class CometServer {
 		ScheduleUtils.periodic(60, 60, new SaveMainHistogramCommand());
 		ScheduleUtils.periodic(60, 60, new SaveIOHistogramCommand());
 	}
+	
+	public void saveClientEnvironIncrs() {
+		ScheduleUtils.periodic(60, 60, new SaveClientEnvironCommand());
+	}
 
 	public void syncZk() {
 		ScheduleManager.getInstance().periodic(60, 60, new Runnable() {
@@ -257,7 +262,7 @@ public class CometServer {
 
 		});
 	}
-
+	
 	public void start(String[] args) {
 		initArgs(args);
 		initConfig();
@@ -270,6 +275,7 @@ public class CometServer {
 		reportStat();
 		saveJobStat();
 		savePerfHistogram();
+		saveClientEnvironIncrs();
 		startLoop();
 		syncZk();
 		LOG.warn(String.format("start comet server serverId=%s ip=%s port=%s",

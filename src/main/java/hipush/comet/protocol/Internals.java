@@ -1,11 +1,11 @@
 package hipush.comet.protocol;
 
+import java.util.Iterator;
+import java.util.List;
+
 import hipush.async.IAsyncTask;
 import hipush.services.MessageInfo;
 import io.netty.channel.ChannelHandlerContext;
-
-import java.util.Iterator;
-import java.util.List;
 
 public class Internals {
 
@@ -106,8 +106,7 @@ public class Internals {
 		private MessageInfo message;
 		private boolean online;
 
-		public PublishIteratorCommand(Iterator<String> clientsIter,
-				String topic, MessageInfo message, boolean online) {
+		public PublishIteratorCommand(Iterator<String> clientsIter, String topic, MessageInfo message, boolean online) {
 			this.topic = topic;
 			this.clientsIter = clientsIter;
 			this.message = message;
@@ -157,8 +156,7 @@ public class Internals {
 		private String msgId;
 		private boolean online;
 
-		public PublishMultiCommand(String appKey, String topic, String msgId,
-				boolean online) {
+		public PublishMultiCommand(String appKey, String topic, String msgId, boolean online) {
 			this.appKey = appKey;
 			this.topic = topic;
 			this.msgId = msgId;
@@ -205,8 +203,7 @@ public class Internals {
 		private String content;
 		private boolean online;
 
-		public PublishPrivateCommand(int messageType, String jobId,
-				String clientId, String content, boolean online) {
+		public PublishPrivateCommand(int messageType, String jobId, String clientId, String content, boolean online) {
 			this.jobId = jobId;
 			this.messageType = messageType;
 			this.clientId = clientId;
@@ -418,6 +415,20 @@ public class Internals {
 		@Override
 		public String getName() {
 			return "save_io_histogram";
+		}
+
+	}
+
+	public static class SaveClientEnvironCommand extends ScheduleCommand {
+
+		@Override
+		public byte getType() {
+			return MessageDefine.Internal.SAVE_CLIENT_ENVIRON;
+		}
+
+		@Override
+		public String getName() {
+			return "save_client_environ";
 		}
 
 	}

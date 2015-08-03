@@ -10,6 +10,7 @@ public class MessageDefine {
 		public final static int CMD_MESSAGE_LIST =4;
 		public final static int CMD_HEARTBEAT = 5;
 		public final static int CMD_MESSAGE_ACK = 6;
+		public final static int CMD_REPORT_ENVIRON = 7;
 	}
 
 	public final static class Write {
@@ -36,6 +37,7 @@ public class MessageDefine {
 		public final static int RESEND_MESSAGE_UNACKED = 12;
 		public final static int SAVE_MAIN_HISTOGRAM = 13;
 		public final static int SAVE_IO_HISTOGRAM = 14;
+		public final static int SAVE_CLIENT_ENVIRON = 15;
 	}
 
 	public final static class Errors {

@@ -1,0 +1,143 @@
+<html>
+<head>
+	{{> partial/header.mus }}
+</head>
+<body>
+    {{> partial/nav.mus }}
+
+    <div class="container-fluid">
+      <div class="row">
+        {{> partial/sidebar.mus }}
+        <div class="col-sm-9 col-sm-offset-3 col-md-10 col-md-offset-2 main">
+          <h1 class="page-header">客户端环境报告</h1>
+          <div class="btn-group btn-group-sm">
+            {{#days}}
+          	<a class="btn btn-default" title="{{right}}" href="/environ/show?day={{right}}">{{left}}</a>
+          	{{/days}}
+          </div>
+          <div id="network_container" style="min-width:800px;height:400px"></div>
+          <div id="isp_container" style="min-width:800px;height:400px"></div>
+          <div id="phone_container" style="min-width:800px;height:400px"></div>
+        </div>
+      </div>
+    </div>
+
+    {{> partial/footer.mus }}
+  </body>
+  <script src="/js/highcharts.js"></script>
+  <script>
+$(function () {
+    $('#network_container').highcharts({
+        chart: {
+            plotBackgroundColor: null,
+            plotBorderWidth: null,
+            plotShadow: false,
+            type: 'pie'
+        },
+        title: {
+            text: '网络类型占比'
+        },
+        tooltip: {
+            pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+        },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: {
+                    enabled: true,
+                    format: '<b>{point.name}</b>: {point.percentage:.1f} %',
+                    style: {
+                        color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+                    }
+                }
+            }
+        },
+        series: [{
+            name: "Networks",
+            colorByPoint: true,
+            data: [
+            {{#networks}}
+            {
+                name: "{{key}}",
+                y: {{value}}
+            },{{/networks}}]
+        }]
+    });
+    $('#isp_container').highcharts({
+        chart: {
+            plotBackgroundColor: null,
+            plotBorderWidth: null,
+            plotShadow: false,
+            type: 'pie'
+        },
+        title: {
+            text: '网络运营商占比'
+        },
+        tooltip: {
+            pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+        },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: {
+                    enabled: true,
+                    format: '<b>{point.name}</b>: {point.percentage:.1f} %',
+                    style: {
+                        color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+                    }
+                }
+            }
+        },
+        series: [{
+            name: "Networks",
+            colorByPoint: true,
+            data: [
+            {{#isps}}
+            {
+                name: "{{key}}",
+                y: {{value}}
+            },{{/isps}}]
+        }]
+    });
+    $('#phone_container').highcharts({
+        chart: {
+            plotBackgroundColor: null,
+            plotBorderWidth: null,
+            plotShadow: false,
+            type: 'pie'
+        },
+        title: {
+            text: '手机型号占比（前100）'
+        },
+        tooltip: {
+            pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+        },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: {
+                    enabled: true,
+                    format: '<b>{point.name}</b>: {point.percentage:.1f} %',
+                    style: {
+                        color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+                    }
+                }
+            }
+        },
+        series: [{
+            name: "Phones",
+            colorByPoint: true,
+            data: [
+            {{#phones}}
+            {
+                name: "{{key}}",
+                y: {{value}}
+            },{{/phones}}]
+        }]
+    });
+});
+  </script>
+</html>

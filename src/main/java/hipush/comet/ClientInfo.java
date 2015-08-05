@@ -13,6 +13,7 @@ public class ClientInfo {
 	private int appId;
 	private List<String> topics;
 	private List<MessageInfo> messages;
+	private boolean ready;  // ［拉完离线消息后］准备好接受推送消息
 	private long lastResendTs; // 上一次重发没有ack的消息的时间戳
 
 	private List<MessageInfo> DUMMY = Collections.emptyList();
@@ -28,6 +29,14 @@ public class ClientInfo {
 			this.messages = messages;
 		}
 		this.lastResendTs = System.currentTimeMillis();
+	}
+	
+	public boolean ready() {
+		return ready;
+	}
+	
+	public void setReady() {
+		this.ready = true;
 	}
 
 	public String getClientId() {

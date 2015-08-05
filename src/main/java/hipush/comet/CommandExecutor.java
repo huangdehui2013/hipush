@@ -243,17 +243,19 @@ public class CommandExecutor {
 		ClientInfo client = ContextUtils.getClient(ctx);
 		final MessageResponse response = new MessageResponse(msg);
 		client.addMessage(msg);
-		ContextUtils.writeAndFlush(ctx, response, new ICallback<Future<Void>>() {
+		if (client.ready()) {
+			ContextUtils.writeAndFlush(ctx, response, new ICallback<Future<Void>>() {
 
-			@Override
-			public void invoke(Future<Void> future) {
-				if (future.isSuccess()) {
-					JobStat stat = getJobStat(jobId);
-					stat.incrRealSentCount();
+				@Override
+				public void invoke(Future<Void> future) {
+					if (future.isSuccess()) {
+						JobStat stat = getJobStat(jobId);
+						stat.incrRealSentCount();
+					}
 				}
-			}
 
-		});
+			});
+		}
 	}
 
 	private class LoadTopicClientsTask implements IAsyncTask {
@@ -406,17 +408,19 @@ public class CommandExecutor {
 			stat.incrSentCount(); // 增加发送量
 			final MessageResponse message = new MessageResponse(command.getMessage());
 			clientInfo.addMessage(command.getMessage());
-			ContextUtils.writeAndFlush(ctx, message, new ICallback<Future<Void>>() {
+			if (clientInfo.ready()) {
+				ContextUtils.writeAndFlush(ctx, message, new ICallback<Future<Void>>() {
 
-				@Override
-				public void invoke(Future<Void> future) {
-					if (future.isSuccess()) {
-						JobStat stat = getJobStat(jobId);
-						stat.incrRealSentCount(); // 增加实际发送量
+					@Override
+					public void invoke(Future<Void> future) {
+						if (future.isSuccess()) {
+							JobStat stat = getJobStat(jobId);
+							stat.incrRealSentCount(); // 增加实际发送量
+						}
 					}
-				}
 
-			});
+				});
+			}
 			total++;
 			// 批次进行，一次1000个
 			if (total >= 1000) {
@@ -864,6 +868,7 @@ public class CommandExecutor {
 			}
 
 		});
+		client.setReady();
 	}
 
 	public void ackMessages(MessageAckCommand command) {
@@ -1154,11 +1159,11 @@ public class CommandExecutor {
 		this.environStat.incrPhone(command.getPhoneType());
 		command.getCtx().writeAndFlush(new OkResponse());
 	}
-	
+
 	private static class SaveClientEnvironTask implements IAsyncTask {
-		
+
 		private ClientEnvironStat environIncrs;
-		
+
 		public SaveClientEnvironTask(ClientEnvironStat environIncrs) {
 			this.environIncrs = environIncrs;
 		}
@@ -1170,21 +1175,21 @@ public class CommandExecutor {
 
 		@Override
 		public void afterOk() {
-			
+
 		}
 
 		@Override
 		public void afterError(Exception e) {
-			
+
 		}
 
 		@Override
 		public String getName() {
 			return "save_client_environ";
 		}
-		
+
 	}
-	
+
 	private void saveClientEnvironIncrs(SaveClientEnvironCommand command) {
 		AsyncManager.getInstance().execute(new SaveClientEnvironTask(environStat));
 		this.environStat = new ClientEnvironStat();

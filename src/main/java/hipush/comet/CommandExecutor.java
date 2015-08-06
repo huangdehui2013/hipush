@@ -1,5 +1,8 @@
 package hipush.comet;
 
+import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -9,12 +12,15 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import javax.crypto.spec.SecretKeySpec;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import hipush.async.AsyncManager;
 import hipush.async.IAsyncTask;
 import hipush.comet.protocol.Inputs.AuthCommand;
+import hipush.comet.protocol.Inputs.ExchangeKeyCommand;
 import hipush.comet.protocol.Inputs.MessageAckCommand;
 import hipush.comet.protocol.Inputs.MessageListCommand;
 import hipush.comet.protocol.Inputs.ReportEnvironCommand;
@@ -39,6 +45,7 @@ import hipush.comet.protocol.Internals.ServerSubscribeCommand;
 import hipush.comet.protocol.Internals.ServerUnSubscribeCommand;
 import hipush.comet.protocol.Internals.ZkStartCommand;
 import hipush.comet.protocol.MessageDefine;
+import hipush.comet.protocol.Outputs.AuthSuccessResponse;
 import hipush.comet.protocol.Outputs.ErrorResponse;
 import hipush.comet.protocol.Outputs.MessageListResponse;
 import hipush.comet.protocol.Outputs.MessageResponse;
@@ -53,6 +60,7 @@ import hipush.core.ICallback;
 import hipush.core.Pair;
 import hipush.services.AppInfo;
 import hipush.services.AppService;
+import hipush.services.EncryptService;
 import hipush.services.JobService;
 import hipush.services.JobStat;
 import hipush.services.MeasureService;
@@ -158,6 +166,9 @@ public class CommandExecutor {
 		case MessageDefine.Read.CMD_REPORT_ENVIRON:
 			reportEnviron((ReportEnvironCommand) command);
 			break;
+		case MessageDefine.Read.CMD_EXCHANGE_KEY:
+			exchangeKey((ExchangeKeyCommand) command);
+			break;
 		default:
 			LOG.error("no method defined for command type=%s", command.getType());
 		}
@@ -241,7 +252,7 @@ public class CommandExecutor {
 		stat.incrSentCount();
 		// 用户在线就直接发过去
 		ClientInfo client = ContextUtils.getClient(ctx);
-		final MessageResponse response = new MessageResponse(msg);
+		final MessageResponse response = new MessageResponse(client.getSecretKey(), msg);
 		client.addMessage(msg);
 		if (client.ready()) {
 			ContextUtils.writeAndFlush(ctx, response, new ICallback<Future<Void>>() {
@@ -406,7 +417,7 @@ public class CommandExecutor {
 			}
 			ClientInfo clientInfo = ContextUtils.getClient(ctx);
 			stat.incrSentCount(); // 增加发送量
-			final MessageResponse message = new MessageResponse(command.getMessage());
+			final MessageResponse message = new MessageResponse(clientInfo.getSecretKey(), command.getMessage());
 			clientInfo.addMessage(command.getMessage());
 			if (clientInfo.ready()) {
 				ContextUtils.writeAndFlush(ctx, message, new ICallback<Future<Void>>() {
@@ -511,6 +522,7 @@ public class CommandExecutor {
 		private volatile String clientId;
 		private volatile ClientInfo clientInfo;
 		private ChannelHandlerContext ctx;
+		private PublicKey encryptKey;
 
 		public LoadClientTask(ChannelHandlerContext ctx, String clientId) {
 			this.ctx = ctx;
@@ -534,7 +546,10 @@ public class CommandExecutor {
 						topics);
 				TopicService.getInstance().subscribeTopics(pair.getAppId(), currentServerId, clientId, topics);
 			}
+			KeyPair keyPair = EncryptService.getInstance().randomKeyPair();
+			encryptKey = keyPair.getPublic();
 			clientInfo = new ClientInfo(clientId, pair.getAppId(), topics, messages);
+			ContextUtils.setDecryptKey(ctx, keyPair.getPrivate());
 			if (lastServerId == null || !("" + currentServerId).equals(lastServerId)) {
 				// 更新路由
 				RouteService.getInstance().saveRoute(clientId, "" + currentServerId);
@@ -543,7 +558,7 @@ public class CommandExecutor {
 
 		@Override
 		public void afterOk() {
-			afterClientLoaded(ctx, clientInfo);
+			afterClientLoaded(ctx, encryptKey, clientInfo);
 		}
 
 		@Override
@@ -558,10 +573,10 @@ public class CommandExecutor {
 
 	}
 
-	public void afterClientLoaded(ChannelHandlerContext ctx, ClientInfo clientInfo) {
+	public void afterClientLoaded(ChannelHandlerContext ctx, PublicKey encryptKey, ClientInfo clientInfo) {
 		ContextUtils.attachClient(ctx, clientInfo);
 		OnlineManager.getInstance().addClient(clientInfo.getClientId(), ctx);
-		ctx.writeAndFlush(new OkResponse());
+		ctx.writeAndFlush(new AuthSuccessResponse(encryptKey.getEncoded()));
 	}
 
 	public void getTopicList(TopicListCommand command) {
@@ -849,7 +864,7 @@ public class CommandExecutor {
 	public void getMessageList(MessageListCommand command) {
 		ChannelHandlerContext ctx = command.getCtx();
 		final ClientInfo client = ContextUtils.getClient(ctx);
-		MessageListResponse message = new MessageListResponse(client.getMessages());
+		MessageListResponse message = new MessageListResponse(client.getSecretKey(), client.getMessages());
 		ctx.writeAndFlush(message).addListener(new FutureListener<Void>() {
 
 			@Override
@@ -1020,16 +1035,17 @@ public class CommandExecutor {
 		client.setLastResendTs(now);
 		for (final MessageInfo message : client.getMessages()) {
 			if (now - message.getTs() > Constants.MESSAGE_UNACKED_CHECK_PERIOD) {
-				ContextUtils.writeAndFlush(ctx, new MessageResponse(message), new ICallback<Future<Void>>() {
+				ContextUtils.writeAndFlush(ctx, new MessageResponse(client.getSecretKey(), message),
+						new ICallback<Future<Void>>() {
 
-					@Override
-					public void invoke(Future<Void> f) {
-						if (f.isSuccess()) {
-							JobStat stat = getJobStat(message.getJobId());
-							stat.incrRealSentCount();
-						}
-					}
-				});
+							@Override
+							public void invoke(Future<Void> f) {
+								if (f.isSuccess()) {
+									JobStat stat = getJobStat(message.getJobId());
+									stat.incrRealSentCount();
+								}
+							}
+						});
 			}
 		}
 	}
@@ -1193,6 +1209,17 @@ public class CommandExecutor {
 	private void saveClientEnvironIncrs(SaveClientEnvironCommand command) {
 		AsyncManager.getInstance().execute(new SaveClientEnvironTask(environStat));
 		this.environStat = new ClientEnvironStat();
+	}
+
+	public void exchangeKey(ExchangeKeyCommand command) {
+		ChannelHandlerContext ctx = command.getCtx();
+		ClientInfo client = ContextUtils.getClient(ctx);
+		PrivateKey decryptKey = ContextUtils.getDecryptKey(ctx);
+		byte[] secretKey = EncryptService.getInstance().decryptWithPrivateKey(decryptKey,
+				command.getEncryptedSecretKey());
+		client.setSecretKey(new SecretKeySpec(secretKey, 0, secretKey.length, "des"));
+		ContextUtils.removeDecryptKey(ctx);
+		ctx.writeAndFlush(new OkResponse());
 	}
 
 }

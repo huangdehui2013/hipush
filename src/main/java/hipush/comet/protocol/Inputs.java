@@ -320,4 +320,38 @@ public class Inputs {
 		}
 
 	}
+	
+	public static class ExchangeKeyCommand  extends ReadCommand {
+		
+		private byte[] encryptedSecretKey;
+
+		public ExchangeKeyCommand(ByteBuf in) {
+			super(in);
+		}
+
+		@Override
+		public byte getType() {
+			return MessageDefine.Read.CMD_EXCHANGE_KEY;
+		}
+
+		@Override
+		public void readImpl() {
+			this.encryptedSecretKey = this.readBytes();
+		}
+
+		@Override
+		public String getName() {
+			return "exchange_key";
+		}
+
+		@Override
+		public boolean isValid() {
+			return this.encryptedSecretKey.length == 64;
+		}
+		
+		public byte[] getEncryptedSecretKey() {
+			return this.encryptedSecretKey;
+		}
+		
+	}
 }

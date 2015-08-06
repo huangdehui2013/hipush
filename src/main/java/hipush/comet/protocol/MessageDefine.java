@@ -11,6 +11,7 @@ public class MessageDefine {
 		public final static int CMD_HEARTBEAT = 5;
 		public final static int CMD_MESSAGE_ACK = 6;
 		public final static int CMD_REPORT_ENVIRON = 7;
+		public final static int CMD_EXCHANGE_KEY = 8;
 	}
 
 	public final static class Write {
@@ -19,6 +20,7 @@ public class MessageDefine {
 		public final static int MSG_TOPIC_LIST = 2;
 		public final static int MSG_MESSAGE_LIST = 3;
 		public final static int MSG_MESSAGE = 4;
+		public final static int MSG_AUTH_SUCCESS = 5;
 	}
 	
 	public final static class Internal {

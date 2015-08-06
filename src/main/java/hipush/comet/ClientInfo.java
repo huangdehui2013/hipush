@@ -1,11 +1,13 @@
 package hipush.comet;
 
-import hipush.core.Helpers;
-import hipush.services.MessageInfo;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import javax.crypto.SecretKey;
+
+import hipush.core.Helpers;
+import hipush.services.MessageInfo;
 
 public class ClientInfo {
 
@@ -13,13 +15,13 @@ public class ClientInfo {
 	private int appId;
 	private List<String> topics;
 	private List<MessageInfo> messages;
-	private boolean ready;  // ［拉完离线消息后］准备好接受推送消息
+	private SecretKey secretKey;
+	private boolean ready; // ［拉完离线消息后］准备好接受推送消息
 	private long lastResendTs; // 上一次重发没有ack的消息的时间戳
 
 	private List<MessageInfo> DUMMY = Collections.emptyList();
 
-	public ClientInfo(String clientId, int appId, List<String> topics,
-			List<MessageInfo> messages) {
+	public ClientInfo(String clientId, int appId, List<String> topics, List<MessageInfo> messages) {
 		this.clientId = clientId;
 		this.appId = appId;
 		this.topics = topics;
@@ -30,11 +32,11 @@ public class ClientInfo {
 		}
 		this.lastResendTs = System.currentTimeMillis();
 	}
-	
+
 	public boolean ready() {
 		return ready;
 	}
-	
+
 	public void setReady() {
 		this.ready = true;
 	}
@@ -63,6 +65,14 @@ public class ClientInfo {
 
 	public void setTopics(List<String> topics) {
 		this.topics = topics;
+	}
+
+	public SecretKey getSecretKey() {
+		return secretKey;
+	}
+
+	public void setSecretKey(SecretKey secretKey) {
+		this.secretKey = secretKey;
 	}
 
 	public boolean isEmpty() {

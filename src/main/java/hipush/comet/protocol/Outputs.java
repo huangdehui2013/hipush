@@ -1,8 +1,10 @@
 package hipush.comet.protocol;
 
-import hipush.services.MessageInfo;
-
 import java.util.List;
+
+import javax.crypto.SecretKey;
+
+import hipush.services.MessageInfo;
 
 public class Outputs {
 	public static class ErrorResponse extends WriteResponse {
@@ -21,23 +23,19 @@ public class Outputs {
 		}
 
 		public static ErrorResponse newBadArgsError(String message) {
-			return new ErrorResponse(MessageDefine.Errors.BADARGS_ERROR,
-					message);
+			return new ErrorResponse(MessageDefine.Errors.BADARGS_ERROR, message);
 		}
 
 		public static ErrorResponse newTokenExpiredError(String message) {
-			return new ErrorResponse(MessageDefine.Errors.TOKEN_EXPIRED_ERROR,
-					message);
+			return new ErrorResponse(MessageDefine.Errors.TOKEN_EXPIRED_ERROR, message);
 		}
 
 		public static ErrorResponse newClientNotFoundError(String message) {
-			return new ErrorResponse(
-					MessageDefine.Errors.CLIENT_NOT_FOUND_ERROR, message);
+			return new ErrorResponse(MessageDefine.Errors.CLIENT_NOT_FOUND_ERROR, message);
 		}
 
 		public static ErrorResponse newClientDupError(String message) {
-			return new ErrorResponse(MessageDefine.Errors.CLIENT_DUP_ERROR,
-					message);
+			return new ErrorResponse(MessageDefine.Errors.CLIENT_DUP_ERROR, message);
 		}
 
 		public static ErrorResponse newServerError(String message) {
@@ -64,9 +62,11 @@ public class Outputs {
 			return MessageDefine.Write.MSG_MESSAGE_LIST;
 		}
 
+		private SecretKey secretKey;
 		private List<MessageInfo> messages;
 
-		public MessageListResponse(List<MessageInfo> messages) {
+		public MessageListResponse(SecretKey secretKey, List<MessageInfo> messages) {
+			this.secretKey = secretKey;
 			this.messages = messages;
 		}
 
@@ -77,7 +77,7 @@ public class Outputs {
 				this.writeByte((byte) message.getType());
 				this.writeStr(message.getId());
 				this.writeStr(message.getJobId());
-				this.writeStr(message.getContent());
+				this.writeBytes(message.encryptContent(secretKey));
 				this.writeLong(message.getTs());
 			}
 		}
@@ -91,9 +91,11 @@ public class Outputs {
 
 	public static class MessageResponse extends WriteResponse {
 
+		private SecretKey encryptKey;
 		private MessageInfo message;
 
-		public MessageResponse(MessageInfo message) {
+		public MessageResponse(SecretKey encryptKey, MessageInfo message) {
+			this.encryptKey = encryptKey;
 			this.message = message;
 		}
 
@@ -107,7 +109,7 @@ public class Outputs {
 			writeByte((byte) message.getType());
 			writeStr(message.getId());
 			writeStr(message.getJobId());
-			writeStr(message.getContent());
+			writeBytes(message.encryptContent(encryptKey));
 			writeLong(message.getTs());
 		}
 
@@ -165,6 +167,31 @@ public class Outputs {
 		@Override
 		public String getName() {
 			return "topic_list";
+		}
+
+	}
+
+	public static class AuthSuccessResponse extends WriteResponse {
+
+		private byte[] encryptKey;
+
+		public AuthSuccessResponse(byte[] encryptKey) {
+			this.encryptKey = encryptKey;
+		}
+
+		@Override
+		public byte getType() {
+			return MessageDefine.Write.MSG_AUTH_SUCCESS;
+		}
+
+		@Override
+		public String getName() {
+			return "auth_success";
+		}
+
+		@Override
+		public void writeImpl() {
+			this.writeBytes(encryptKey);
 		}
 
 	}

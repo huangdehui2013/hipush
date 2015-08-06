@@ -7,6 +7,7 @@ import java.text.SimpleDateFormat;
 import java.util.Random;
 
 import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
 
 import org.apache.commons.codec.binary.Base64;
 
@@ -52,7 +53,23 @@ public abstract class LocalObject<T> {
 		@Override
 		protected KeyPairGenerator create() {
 			try {
-				return KeyPairGenerator.getInstance("rsa");
+				KeyPairGenerator gen = KeyPairGenerator.getInstance("rsa");
+				gen.initialize(512);
+				return gen;
+			} catch (NoSuchAlgorithmException e) {
+				return null;
+			}
+		}
+
+	};
+
+	public final static LocalObject<KeyGenerator> desKeyGen = new LocalObject<KeyGenerator>() {
+
+		@Override
+		protected KeyGenerator create() {
+			try {
+				KeyGenerator gen = KeyGenerator.getInstance("des");
+				return gen;
 			} catch (NoSuchAlgorithmException e) {
 				return null;
 			}
@@ -66,6 +83,18 @@ public abstract class LocalObject<T> {
 		protected Cipher create() {
 			try {
 				return Cipher.getInstance("rsa");
+			} catch (Exception e) {
+				return null;
+			}
+		}
+	};
+	
+	public final static LocalObject<Cipher> desCipher = new LocalObject<Cipher>() {
+
+		@Override
+		protected Cipher create() {
+			try {
+				return Cipher.getInstance("des");
 			} catch (Exception e) {
 				return null;
 			}

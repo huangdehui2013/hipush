@@ -1,6 +1,7 @@
 package hipush.comet.protocol;
 
 import hipush.comet.protocol.Inputs.AuthCommand;
+import hipush.comet.protocol.Inputs.ExchangeKeyCommand;
 import hipush.comet.protocol.Inputs.HeartBeatCommand;
 import hipush.comet.protocol.Inputs.MessageAckCommand;
 import hipush.comet.protocol.Inputs.MessageListCommand;
@@ -41,6 +42,9 @@ public class CommandBuilder {
 			break;
 		case MessageDefine.Read.CMD_REPORT_ENVIRON:
 			result = new ReportEnvironCommand(body);
+			break;
+		case MessageDefine.Read.CMD_EXCHANGE_KEY:
+			result = new ExchangeKeyCommand(body);
 			break;
 		default:
 			throw new MessageUndefinedError("message type not defined");

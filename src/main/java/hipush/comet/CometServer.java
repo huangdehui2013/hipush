@@ -30,6 +30,7 @@ import hipush.core.CommandDefine;
 import hipush.core.ScheduleManager;
 import hipush.db.DaoCenter;
 import hipush.services.AppService;
+import hipush.services.EncryptService;
 import hipush.services.JobService;
 import hipush.services.MeasureService;
 import hipush.services.MessageInfo;
@@ -54,8 +55,7 @@ import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.traffic.ChannelTrafficShapingHandler;
 
 public class CometServer {
-	private final static Logger LOG = LoggerFactory
-			.getLogger(CometServer.class);
+	private final static Logger LOG = LoggerFactory.getLogger(CometServer.class);
 
 	private final static CometServer instance = new CometServer();
 	private CometConfig config = new CometConfig();
@@ -78,39 +78,29 @@ public class CometServer {
 		EventLoopGroup m_workerGroup = new NioEventLoopGroup(4);
 		final CometHandler handler = new CometHandler();
 		final MessageEncoder msgEncoder = new MessageEncoder();
-		bootstrap
-				.group(m_bossGroup, m_workerGroup)
-				.channel(NioServerSocketChannel.class)
+		bootstrap.group(m_bossGroup, m_workerGroup).channel(NioServerSocketChannel.class)
 				.childHandler(new ChannelInitializer<SocketChannel>() {
 					@Override
 					public void initChannel(SocketChannel ch) throws Exception {
 						ChannelPipeline pipe = ch.pipeline();
 						// 控制读速度上线，防止流量攻击
 						// 控制写速度上线，避免消息推送风暴
-						pipe.addLast(new ChannelTrafficShapingHandler(10240,
-								1024, 5000));
+						pipe.addLast(new ChannelTrafficShapingHandler(10240, 1024, 5000));
 						pipe.addLast(new ReadTimeoutHandler(120));
 						pipe.addLast(new CommandDecoder());
 						pipe.addLast(msgEncoder);
 						pipe.addLast(handler);
 					}
-				})
-				.option(ChannelOption.SO_BACKLOG, 10000)
-				.option(ChannelOption.SO_REUSEADDR, true)
-				.option(ChannelOption.TCP_NODELAY, true)
-				.childOption(ChannelOption.SO_KEEPALIVE, true)
+				}).option(ChannelOption.SO_BACKLOG, 10000).option(ChannelOption.SO_REUSEADDR, true)
+				.option(ChannelOption.TCP_NODELAY, true).childOption(ChannelOption.SO_KEEPALIVE, true)
 				.childOption(ChannelOption.SO_RCVBUF, 1024)
 				// 接受的数据比较少
 				.childOption(ChannelOption.SO_SNDBUF, 65536)
 				// 发送的数据可能较大
-				.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK,
-						8 * 1024)
-				.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK,
-						32 * 1024);
+				.childOption(ChannelOption.WRITE_BUFFER_LOW_WATER_MARK, 8 * 1024)
+				.childOption(ChannelOption.WRITE_BUFFER_HIGH_WATER_MARK, 32 * 1024);
 		try {
-			Channel future = bootstrap
-					.bind(config.getCometIp(), config.getPort()).sync()
-					.channel();
+			Channel future = bootstrap.bind(config.getCometIp(), config.getPort()).sync().channel();
 			future.closeFuture().sync();
 		} catch (Exception e) {
 			LOG.error("listen comet address error", e);
@@ -126,13 +116,11 @@ public class CometServer {
 		Map<String, String> env = System.getenv();
 		int serverIdStart = Integer.parseInt(env.get("serverIdStart"));
 		int portStart = Integer.parseInt(env.get("portStart"));
-		CommandLine line = CommandDefine.getInstance()
-				.addStringOption("runmode", "specify runmode")
+		CommandLine line = CommandDefine.getInstance().addStringOption("runmode", "specify runmode")
 				.addStringOption("seq", "server sequence per service")
 				.addStringOption("cometip", "ip front for comet client")
 				.addStringOption("rpcip", "rpc ip backend for admin and web")
-				.addStringOption("maxconn", "max connections allowed")
-				.addBooleanOption("debug", "run in debug mode")
+				.addStringOption("maxconn", "max connections allowed").addBooleanOption("debug", "run in debug mode")
 				.getCommandLine(args);
 		int seq = Integer.parseInt(line.getOptionValue("seq"));
 		config.setRunmode(line.getOptionValue("runmode"));
@@ -140,8 +128,7 @@ public class CometServer {
 		config.setCometIp(line.getOptionValue("cometip"));
 		config.setRpcIp(line.getOptionValue("rpcip"));
 		config.setPort(portStart + seq);
-		config.setMaxConnections(Integer.parseInt(line
-				.getOptionValue("maxconn")));
+		config.setMaxConnections(Integer.parseInt(line.getOptionValue("maxconn")));
 		config.setDebug(line.hasOption("debug"));
 	}
 
@@ -150,10 +137,8 @@ public class CometServer {
 		ScriptEngine script = factory.getEngineByName("JavaScript");
 		script.put("config", this.config);
 		Reader jsReader = null;
-		String jsFile = String
-				.format("/config/%s.js", this.config.getRunmode());
-		jsReader = new BufferedReader(new InputStreamReader(getClass()
-				.getResourceAsStream(jsFile)));
+		String jsFile = String.format("/config/%s.js", this.config.getRunmode());
+		jsReader = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(jsFile)));
 		try {
 			script.eval(jsReader);
 		} catch (ScriptException e) {
@@ -169,18 +154,15 @@ public class CometServer {
 		ReportService.getInstance().setJedisPool(config.getJedisPool("meta"));
 		SessionService.getInstance().setJedisPool(config.getJedisPool("meta"));
 		JobService.getInstance().setJedisPool(config.getJedisPool("message"));
-		MessageService.getInstance().setJedisPool(
-				config.getJedisPool("message"));
+		MessageService.getInstance().setJedisPool(config.getJedisPool("message"));
 		RouteService.getInstance().setJedisPool(config.getJedisPool("route"));
 		TopicService.getInstance().setJedisPool(config.getJedisPool("topic"));
 		UserService.getInstance().setJedisPool(config.getJedisPool("user"));
 		MeasureService.getInstance().setJedisPool(config.getJedisPool("meta"));
 		try {
 			DaoCenter.getInstance().initAppDao(config.getMysqlSource("meta"));
-			DaoCenter.getInstance().initManagerDao(
-					config.getMysqlSource("meta"));
-			DaoCenter.getInstance()
-					.initJobTypeDao(config.getMysqlSource("job"));
+			DaoCenter.getInstance().initManagerDao(config.getMysqlSource("meta"));
+			DaoCenter.getInstance().initJobTypeDao(config.getMysqlSource("job"));
 			DaoCenter.getInstance().initJobDao(config.getMysqlSource("job"));
 			DaoCenter.getInstance().initUserDao(config.getMysqlSource("user"));
 		} catch (SQLException e) {
@@ -193,28 +175,22 @@ public class CometServer {
 	private void hookShutdown() {
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			public void run() {
-				ZkService.getInstance().unregisterComet(
-						"" + config.getServerId());
-				ZkService.getInstance()
-						.unregisterRpc("" + config.getServerId());
+				ZkService.getInstance().unregisterComet("" + config.getServerId());
+				ZkService.getInstance().unregisterRpc("" + config.getServerId());
 				// 最后一次把任务统计数字刷到库里去
-				MessageProcessor.getInstance().putMessage(
-						new SaveJobStatCommand(true));
+				MessageProcessor.getInstance().putMessage(new SaveJobStatCommand(true));
 				MessageProcessor.getInstance().stop();
 				RpcServer.getInstance().stop();
 				// 同步保存用户没有ack的消息
-				List<ClientInfo> clients = OnlineManager.getInstance()
-						.getDirtyClients();
+				List<ClientInfo> clients = OnlineManager.getInstance().getDirtyClients();
 				for (ClientInfo client : clients) {
 					List<MessageInfo> messages = client.getMessages();
 					for (MessageInfo message : messages) {
 						if (MessageId.isPrivate(message.getId())) {
-							MessageService.getInstance().savePrivateMessage(
-									message);
+							MessageService.getInstance().savePrivateMessage(message);
 						}
 					}
-					MessageService.getInstance().saveUserMessages(
-							client.getClientId(), messages);
+					MessageService.getInstance().saveUserMessages(client.getClientId(), messages);
 				}
 				try {
 					Thread.sleep(5000);
@@ -247,7 +223,7 @@ public class CometServer {
 		ScheduleUtils.periodic(60, 60, new SaveMainHistogramCommand());
 		ScheduleUtils.periodic(60, 60, new SaveIOHistogramCommand());
 	}
-	
+
 	public void saveClientEnvironIncrs() {
 		ScheduleUtils.periodic(60, 60, new SaveClientEnvironCommand());
 	}
@@ -262,13 +238,32 @@ public class CometServer {
 
 		});
 	}
-	
+
+	public void refreshEncryptKeys() {
+		EncryptService.getInstance().generateKeyPairs();
+		ScheduleManager.getInstance().periodic(600, 600, new Runnable() {
+
+			@Override
+			public void run() {
+				AsyncManager.getInstance().execute(new Runnable() {
+
+					@Override
+					public void run() {
+						EncryptService.getInstance().generateKeyPairs();
+					}
+
+				});
+			}
+
+		});
+	}
+
 	public void start(String[] args) {
 		initArgs(args);
 		initConfig();
 		initialize();
-		LOG.warn(String.format("start rpc server serverId=%s ip=%s port=%s",
-				config.getServerId(), config.getRpcIp(), config.getPort()));
+		LOG.warn(String.format("start rpc server serverId=%s ip=%s port=%s", config.getServerId(), config.getRpcIp(),
+				config.getPort()));
 		startRpc();
 		hookShutdown();
 		delayZk();
@@ -278,8 +273,9 @@ public class CometServer {
 		saveClientEnvironIncrs();
 		startLoop();
 		syncZk();
-		LOG.warn(String.format("start comet server serverId=%s ip=%s port=%s",
-				config.getServerId(), config.getCometIp(), config.getPort()));
+		refreshEncryptKeys();
+		LOG.warn(String.format("start comet server serverId=%s ip=%s port=%s", config.getServerId(),
+				config.getCometIp(), config.getPort()));
 		startFront();
 	}
 }

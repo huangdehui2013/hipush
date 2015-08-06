@@ -49,8 +49,11 @@ public abstract class ReadCommand {
 		return this.in.readLong();
 	}
 
-	public ByteBuf readBytes(byte[] bytes) {
-		return this.in.readBytes(bytes);
+	public byte[] readBytes() {
+		int len = this.in.readShort();
+		byte[] bytes = new byte[len];
+		this.in.readBytes(bytes);
+		return bytes;
 	}
 
 	public String readStr() {

@@ -23,8 +23,12 @@ public abstract class WriteResponse {
 
 	public void writeStr(String s) {
 		byte[] bytes = s.getBytes(Charsets.utf8);
-		out.writeShort(bytes.length);
-		out.writeBytes(bytes);
+		this.writeBytes(bytes);
+	}
+	
+	public void writeBytes(byte[] bs) {
+		out.writeShort(bs.length);
+		out.writeBytes(bs);
 	}
 
 	public void writeByte(byte b) {

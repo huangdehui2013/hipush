@@ -15,14 +15,11 @@ import javax.crypto.Cipher;
 import org.apache.commons.codec.binary.Base64;
 
 public class RsaHelpers {
-	
+
 	private static final int RSAKEYS_SIZE = 10;
-	private static Map<PublicKey, PrivateKey> rsaKeys = new HashMap<PublicKey, PrivateKey>(
-			RSAKEYS_SIZE);
-	private static Map<String, PublicKey> rsaPublicKeyMap = new HashMap<String, PublicKey>(
-			RSAKEYS_SIZE);
-	private static List<PublicKey> rsaPublicKeys = new ArrayList<PublicKey>(
-			RSAKEYS_SIZE);
+	private static Map<PublicKey, PrivateKey> rsaKeys = new HashMap<PublicKey, PrivateKey>(RSAKEYS_SIZE);
+	private static Map<String, PublicKey> rsaPublicKeyMap = new HashMap<String, PublicKey>(RSAKEYS_SIZE);
+	private static List<PublicKey> rsaPublicKeys = new ArrayList<PublicKey>(RSAKEYS_SIZE);
 	private static long lastTs;
 
 	public static PublicKey randomRsaPublicKey() {
@@ -35,8 +32,7 @@ public class RsaHelpers {
 						rsaKeys.put(pair.getPublic(), pair.getPrivate());
 						rsaPublicKeys.add(pair.getPublic());
 						Base64 b64 = LocalObject.base64.get();
-						String pubKey = b64.encodeToString(pair.getPublic()
-								.getEncoded());
+						String pubKey = b64.encodeToString(pair.getPublic().getEncoded());
 						rsaPublicKeyMap.put(pubKey, pair.getPublic());
 					}
 					lastTs = System.currentTimeMillis();
@@ -69,15 +65,13 @@ public class RsaHelpers {
 		try {
 			cipher.init(Cipher.ENCRYPT_MODE, publicKey);
 			Base64 b64 = LocalObject.base64.get();
-			return b64.encodeToString(cipher.doFinal(content
-					.getBytes(Charsets.utf8)));
+			return b64.encodeToString(cipher.doFinal(content.getBytes(Charsets.utf8)));
 		} catch (Exception e) {
 			return null;
 		}
 	}
 
-	public static String decodeWithPrivate(String publicKey,
-			String contentEncrypted) {
+	public static String decodeWithPrivate(String publicKey, String contentEncrypted) {
 		PublicKey pubKey = rsaPublicKeyMap.get(publicKey);
 		if (pubKey == null) {
 			return null;
@@ -85,13 +79,11 @@ public class RsaHelpers {
 		return decodeWithPrivate(pubKey, contentEncrypted);
 	}
 
-	public static String decodeWithPrivate(PublicKey publicKey,
-			String contentEncrypted) {
+	public static String decodeWithPrivate(PublicKey publicKey, String contentEncrypted) {
 		Cipher cipher = LocalObject.rsaCipher.get();
 		PrivateKey key = rsaKeys.get(publicKey);
 		Base64 b64 = LocalObject.base64.get();
-		byte[] bytesEncrypted = b64.decode(contentEncrypted
-				.getBytes(Charsets.utf8));
+		byte[] bytesEncrypted = b64.decode(contentEncrypted.getBytes(Charsets.utf8));
 		try {
 			cipher.init(Cipher.DECRYPT_MODE, key);
 			byte[] bytes = cipher.doFinal(bytesEncrypted);
@@ -100,5 +92,5 @@ public class RsaHelpers {
 			return null;
 		}
 	}
-	
+
 }

@@ -1,5 +1,7 @@
 package hipush.services;
 
+import javax.crypto.SecretKey;
+
 public class MessageInfo {
 
 	private int type;
@@ -57,6 +59,10 @@ public class MessageInfo {
 
 	public void setJobId(String jobId) {
 		this.jobId = jobId;
+	}
+
+	public byte[] encryptContent(SecretKey encryptKey) {
+		return EncryptService.getInstance().encryptByDes(encryptKey, content);
 	}
 
 }

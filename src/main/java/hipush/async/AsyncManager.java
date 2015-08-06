@@ -50,5 +50,9 @@ public class AsyncManager {
 
 		});
 	}
+	
+	public void execute(final Runnable runnable) {
+		executors.execute(runnable);
+	}
 
 }

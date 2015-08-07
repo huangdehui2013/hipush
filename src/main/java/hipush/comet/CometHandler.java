@@ -63,7 +63,7 @@ public class CometHandler extends ChannelHandlerAdapter {
 				long now = System.currentTimeMillis();
 				if (client != null
 						&& !client.isEmpty()
-						&& now - client.getLastResendTs() > Constants.MESSAGE_UNACKED_CHECK_PERIOD
+						&& now > client.getLastResendTs() + Constants.MESSAGE_UNACKED_CHECK_PERIOD
 						&& ctx.channel().isActive()
 						&& ctx.channel().isWritable()) {
 					MessageProcessor.getInstance().putMessage(

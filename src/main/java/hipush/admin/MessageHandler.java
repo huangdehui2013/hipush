@@ -1,5 +1,6 @@
 package hipush.admin;
 
+import hipush.core.Constants;
 import hipush.core.Helpers;
 import hipush.http.BaseHandler;
 import hipush.http.Branch;
@@ -128,6 +129,10 @@ public class MessageHandler extends BaseHandler {
 		int messageType = form.getInteger("msg_type");
 		String jobId = form.getString("job_id");
 		String content = form.getString("content");
+		if(content.length() > Constants.MESSAGE_CONTENT_MAX_LENGTH) {
+			form.raise("content is too long");
+			return;
+		}
 		AppInfo app = AppService.getInstance().getApp(appKey);
 		if (app == null) {
 			form.raise("app_key not exists");

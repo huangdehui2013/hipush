@@ -4,23 +4,24 @@ public class MessageDefine {
 
 	public final static class Read {
 		public final static int CMD_AUTH = 0;
-		public final static int CMD_TOPIC_LIST = 1;
-		public final static int CMD_SUBSCRIBE = 2;
-		public final static int CMD_UNSUBSCRIBE = 3;
-		public final static int CMD_MESSAGE_LIST =4;
-		public final static int CMD_HEARTBEAT = 5;
-		public final static int CMD_MESSAGE_ACK = 6;
-		public final static int CMD_REPORT_ENVIRON = 7;
-		public final static int CMD_EXCHANGE_KEY = 8;
+		public final static int CMD_EXCHANGE_KEY = 1;
+		public final static int CMD_TOPIC_LIST = 2;
+		public final static int CMD_SUBSCRIBE = 3;
+		public final static int CMD_UNSUBSCRIBE = 4;
+		public final static int CMD_MESSAGE_LIST =5;
+		public final static int CMD_HEARTBEAT = 6;
+		public final static int CMD_MESSAGE_ACK = 7;
+		public final static int CMD_REPORT_ENVIRON = 8;
+		
 	}
 
 	public final static class Write {
 		public final static int MSG_OK = 0;
 		public final static int MSG_ERROR = 1;
-		public final static int MSG_TOPIC_LIST = 2;
-		public final static int MSG_MESSAGE_LIST = 3;
-		public final static int MSG_MESSAGE = 4;
-		public final static int MSG_AUTH_SUCCESS = 5;
+		public final static int MSG_AUTH_SUCCESS = 2;
+		public final static int MSG_TOPIC_LIST = 3;
+		public final static int MSG_MESSAGE_LIST = 4;
+		public final static int MSG_MESSAGE = 5;
 	}
 	
 	public final static class Internal {

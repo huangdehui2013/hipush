@@ -1,5 +1,6 @@
 package hipush.admin;
 
+import hipush.core.Constants;
 import hipush.core.Helpers;
 import hipush.http.BaseHandler;
 import hipush.http.Branch;
@@ -34,8 +35,7 @@ import com.mashape.unirest.http.exceptions.UnirestException;
 @Root(path = "/publish")
 public class PublishHandler extends BaseHandler {
 
-	private final static Logger LOG = LoggerFactory
-			.getLogger(PublishHandler.class);
+	private final static Logger LOG = LoggerFactory.getLogger(PublishHandler.class);
 
 	@Branch(path = "/private", methods = { "POST" })
 	public void doPrivate(ChannelHandlerContext ctx, Form form) {
@@ -46,6 +46,10 @@ public class PublishHandler extends BaseHandler {
 		String content = form.getString("content");
 		boolean online = form.getBoolean("online");
 		String sign = form.getString("sign");
+		if (content.length() > Constants.MESSAGE_CONTENT_MAX_LENGTH) {
+			form.raise("content is too long");
+			return;
+		}
 		if (!ClientId.isValid(clientId)) {
 			form.raise("device_id illegal");
 			return;
@@ -63,9 +67,8 @@ public class PublishHandler extends BaseHandler {
 			form.raise("app_key not exists");
 			return;
 		}
-		if (!Helpers.checkSign(app.getSecret(), sign, "app_key=" + appKey,
-				"client_id=" + clientId, "content=" + content, "job_id="
-						+ jobId, "msg_type=" + messageType, "online=" + online)) {
+		if (!Helpers.checkSign(app.getSecret(), sign, "app_key=" + appKey, "client_id=" + clientId,
+				"content=" + content, "job_id=" + jobId, "msg_type=" + messageType, "online=" + online)) {
 			form.raise("signature mismatch!");
 			return;
 		}
@@ -86,12 +89,9 @@ public class PublishHandler extends BaseHandler {
 		} else {
 			inst = ZkService.getInstance().getRpc(serverId);
 		}
-		String url = String.format("http://%s:%s/publish/private",
-				inst.getAddress(), inst.getPort());
-		Unirest.post(url).field("client_id", clientId)
-				.field("msg_type", messageType).field("job_id", jobId)
-				.field("content", content).field("online", online)
-				.asJsonAsync();
+		String url = String.format("http://%s:%s/publish/private", inst.getAddress(), inst.getPort());
+		Unirest.post(url).field("client_id", clientId).field("msg_type", messageType).field("job_id", jobId)
+				.field("content", content).field("online", online).asJsonAsync();
 		this.renderOk(ctx);
 	}
 
@@ -117,9 +117,8 @@ public class PublishHandler extends BaseHandler {
 			form.raise("app not exists");
 			return;
 		}
-		if (!Helpers.checkSign(app.getSecret(), sign, "app_key=" + appKey,
-				"device_id=" + deviceId, "content=" + content, "job_id="
-						+ jobId, "msg_type=" + messageType, "online=" + online)) {
+		if (!Helpers.checkSign(app.getSecret(), sign, "app_key=" + appKey, "device_id=" + deviceId,
+				"content=" + content, "job_id=" + jobId, "msg_type=" + messageType, "online=" + online)) {
 			form.raise("signature mismatch!");
 			return;
 		}
@@ -127,8 +126,7 @@ public class PublishHandler extends BaseHandler {
 			form.raise("content must not be empty");
 			return;
 		}
-		String clientId = UserService.getInstance().getClientId(deviceId,
-				appKey);
+		String clientId = UserService.getInstance().getClientId(deviceId, appKey);
 		if (clientId == null) {
 			form.raise("client_id not found");
 			return;
@@ -141,12 +139,9 @@ public class PublishHandler extends BaseHandler {
 		} else {
 			inst = ZkService.getInstance().getRpc(serverId);
 		}
-		String url = String.format("http://%s:%s/publish/private",
-				inst.getAddress(), inst.getPort());
-		Unirest.post(url).field("client_id", clientId)
-				.field("msg_type", messageType).field("job_id", jobId)
-				.field("content", content).field("online", online)
-				.asJsonAsync();
+		String url = String.format("http://%s:%s/publish/private", inst.getAddress(), inst.getPort());
+		Unirest.post(url).field("client_id", clientId).field("msg_type", messageType).field("job_id", jobId)
+				.field("content", content).field("online", online).asJsonAsync();
 		this.setKeepAlive(ctx, true);
 		this.renderOk(ctx);
 	}
@@ -167,18 +162,16 @@ public class PublishHandler extends BaseHandler {
 			form.raise("app not exists");
 			return;
 		}
-		if (!Helpers.checkSign(app.getSecret(), sign, "app_key=" + appKey,
-				"msg_id=" + msgId, "online=" + online, "topic=" + topic)) {
+		if (!Helpers.checkSign(app.getSecret(), sign, "app_key=" + appKey, "msg_id=" + msgId, "online=" + online,
+				"topic=" + topic)) {
 			form.raise("signature mismatch!");
 			return;
 		}
-		final List<ServiceInstance<String>> instances = ZkService.getInstance()
-				.getRpcList();
+		final List<ServiceInstance<String>> instances = ZkService.getInstance().getRpcList();
 
 		if (instances == null || instances.isEmpty()) {
 			LOG.error("rpc services is not ready");
-			this.renderError(ctx, new Errors.ServerError(
-					"rpc services is not ready"));
+			this.renderError(ctx, new Errors.ServerError("rpc services is not ready"));
 			return;
 		}
 
@@ -186,18 +179,14 @@ public class PublishHandler extends BaseHandler {
 		final BaseHandler parent = this;
 		for (int i = 0; i < instances.size(); i++) {
 			final ServiceInstance<String> inst = instances.get(i);
-			String url = String.format("http://%s:%s/publish/multi",
-					inst.getAddress(), inst.getPort());
-			Unirest.post(url).field("msg_id", msgId).field("app_key", appKey)
-					.field("topic", topic).field("online", online)
-					.asJsonAsync(new Callback<JsonNode>() {
+			String url = String.format("http://%s:%s/publish/multi", inst.getAddress(), inst.getPort());
+			Unirest.post(url).field("msg_id", msgId).field("app_key", appKey).field("topic", topic)
+					.field("online", online).asJsonAsync(new Callback<JsonNode>() {
 
 						@Override
 						public void completed(HttpResponse<JsonNode> arg0) {
-							LOG.info(String
-									.format("publish multi for serverid=%s ip=%s port=%s",
-											inst.getId(), inst.getAddress(),
-											inst.getPort()));
+							LOG.info(String.format("publish multi for serverid=%s ip=%s port=%s", inst.getId(),
+									inst.getAddress(), inst.getPort()));
 							checkFinished();
 						}
 
@@ -211,11 +200,8 @@ public class PublishHandler extends BaseHandler {
 
 						@Override
 						public void failed(UnirestException arg0) {
-							LOG.error(
-									String.format(
-											"publish multi failed for serverid=%s ip=%s port=%s",
-											inst.getId(), inst.getAddress(),
-											inst.getPort()), arg0);
+							LOG.error(String.format("publish multi failed for serverid=%s ip=%s port=%s", inst.getId(),
+									inst.getAddress(), inst.getPort()), arg0);
 							checkFinished();
 						}
 

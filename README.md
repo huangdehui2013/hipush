@@ -10,6 +10,7 @@ hipush概要设计
 8. supervisor进程监控
 9. maven exec运行进程
 10. 自定义二进制协议
+11. 消息加密
 
 
 ```
@@ -96,6 +97,8 @@ response = ok|error|topic_list|message_list|message
 
 auth = msg_len{short} + msg_type_auth{byte} + client_id{string} + token{string}
 
+exchange_key = msg_len{short} + msg_type_exchange_key{byte} + secret_key{bytes}
+
 get_topic_list = msg_len{short} + msg_type_get_topic_list{byte}
 
 get_message_list = msg_len{short} + msg_type_get_message_list{byte}
@@ -110,15 +113,19 @@ ok = response_len{short} + response_type_ok{byte}
 
 error = response_len{short} + response_type_error{byte} + error_code{byte} + reason{string}
 
+auth_success = response_len{short} + response_type_auth_success{byte} + encrypt_key{bytes}
+
 topic_list =  response_len{short} + response_type_topic_list{byte} + topics_size{byte} + topics{string[len]}
 
 message_list =  response_len{short} + response_type_message_list{byte} + messages_size{byte} + messages{message_struct[len]}
 
 message = response_len{short} + response_type_message{byte} + body{message_struct}
 
-message_struct = type{byte} + id{string} + timestamp{long} + content{string}
+message_struct = type{byte} + id{string} + job_id{string} + timestamp{long} + encrypted_content{bytes}
 
 string = len[short] + byte{len}
+
+bytes = len[short] + byte[len]
 
 
 内存数据结构

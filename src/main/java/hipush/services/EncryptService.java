@@ -81,4 +81,17 @@ public class EncryptService {
 		}
 	}
 	
+	public static void main(String[] args) {
+		SecretKey key = LocalObject.desKeyGen.get().generateKey();
+		String s = "fsdfdfsdfdsfdsfsdfsdfsdfafwerweg";
+		s = s + s + s + s;
+		s = s + s + s + s;
+		s = s + s + s + s;
+		s = s + s + s + s;
+		s = s + s + s + s;
+		System.out.println(s.length());
+		byte[] si = EncryptService.getInstance().encryptByDes(key, s);
+		System.out.println(si.length);
+	}
+	
 }

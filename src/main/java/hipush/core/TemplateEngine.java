@@ -1,4 +1,4 @@
-package hipush.http;
+package hipush.core;
 
 import java.io.StringWriter;
 

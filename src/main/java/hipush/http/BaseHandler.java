@@ -1,6 +1,7 @@
 package hipush.http;
 
 import hipush.core.ContextUtils;
+import hipush.core.TemplateEngine;
 import hipush.services.Session;
 import hipush.services.SessionService;
 import hipush.uuid.SessionId;

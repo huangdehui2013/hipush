@@ -2,6 +2,7 @@ package hipush.http;
 
 import hipush.core.ContextUtils;
 import hipush.core.Helpers;
+import hipush.core.TemplateEngine;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.Cookie;

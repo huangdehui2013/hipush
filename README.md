@@ -215,13 +215,13 @@ comet server    ======>    redis server{token=>client_id}
 3. 安装supervisor
 4. 安装redis-server，用默认端口6379启动
 5. 安装zookeeper，用默认端口2181启动
-6. 修改supervisor/dev.conf中的--cometip 192.168.1.106 改成你自己的ip地址
+6. 修改supervisor/dev.conf中的192.168.1.106 改成你自己的ip地址
 7. mkdir /tmp/hipush
 8. mkdir /data/logs/hipush
 9. 执行mvn compile
 10. 执行supervisord -c supervisor/dev.conf
 11. 执行supervisorctl -c supervisor/dev.conf
-如果你看到三个进程从starting状态变成了running，然后一直持续running状态，那就表示成功了
+打开 http://ip:8081   hipush/hipush 访问管理后台
 
 [Java客户端](http://192.168.6.70/push/hipush-client/tree/master)
 [API文档](docs/api.md)

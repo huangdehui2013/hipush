@@ -1,0 +1,39 @@
+upstream hipush_admin {
+	{{#admins}}
+	server {{ address }}:{{ port }} max_fails=2 fail_timeout=30s weight=10;
+	{{/admins}}
+}
+
+upstream hipush_web {
+	{{#webs}}
+	server {{ address }}:{{ port }} max_fails=2 fail_timeout=30s weight=10;
+	{{/webs}}
+}
+
+server {
+	listen 8080;
+	server_name {{ip}};
+
+	location / {
+		access_log /data/logs/nginx/web.log main buffer=1M;
+		proxy_pass_header Server;
+		proxy_set_header Host $http_host;
+		proxy_redirect off;
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_pass http://hipush_web;
+	}
+}
+
+server {
+	listen 8081;
+	server_name {{ip}};
+
+	location / {
+		access_log /data/logs/nginx/admin.log main;
+		proxy_pass_header Server;
+		proxy_set_header Host $http_host;
+		proxy_redirect off;
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_pass http://hipush_admin;
+	}
+}

@@ -59,12 +59,14 @@ public class ServiceDog {
 	private void initArgs(String[] args) {
 		CommandLine line = CommandDefine.getInstance()
 				.addStringOption("runmode", "specify runmode")
-				.addStringOption("upstream", "specify upstream file path")
+				.addStringOption("file", "specify nginx site config file path")
+				.addStringOption("ip", "ip for nginx site")
 				.addBooleanOption("debug", "run in debug mode").getCommandLine(args);
 		config.setRunmode(line.getOptionValue("runmode"));
 		config.setDebug(line.hasOption("debug"));
 		config.setTemplateRoot("nginx");
-		config.setUpstreamPath(line.getOptionValue("upstream"));
+		config.setFilePath(line.getOptionValue("file"));
+		config.setIp(line.getOptionValue("ip"));
 		templateEngine = new TemplateEngine(config.getTemplateRoot());
 	}
 
@@ -131,10 +133,11 @@ public class ServiceDog {
 		Map<String, Object> context = new HashMap<String, Object>();
 		context.put("admins", admins);
 		context.put("webs", webs);
-		StringBuffer content = templateEngine.renderTemplate("upstream.mus", context);
+		context.put("ip", config.getIp());
+		StringBuffer content = templateEngine.renderTemplate("hipush.mus", context);
 		try {
 			LOG.warn("begin write upstream");
-			FileOutputStream stream = new FileOutputStream(config.getUpstreamPath());
+			FileOutputStream stream = new FileOutputStream(config.getFilePath());
 			stream.write(content.toString().getBytes());
 			stream.close();
 			LOG.warn("write upstream success");
